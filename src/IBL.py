@@ -18,14 +18,14 @@ class IBL:
         self.X = X.reset_index(drop=True)
         self.y = y.reset_index(drop=True)
 
-    def run(self, test_X, k=5, metric="euclidean", vote="modified_plurality", types=None):
+    def run(self, test_matrix, k=5, metric="euclidean", vote="modified_plurality", types=None):
         self.k = int(k)
         self.metric = metric
         self.vote = vote
         self.types = types
         predictions = []
 
-        for i, instance in test_X.iterrows():
+        for i, instance in test_matrix.iterrows():
             
             if self.metric == "euclidean":
                 distances = self._euclidean_distance(self.X, instance)
@@ -160,6 +160,11 @@ class IBL:
             if cls in tied:
                 return cls
 
+    def Never_Retain(self, X, instance):
+        return X
+
+    def Always_Retain(self, X, instance):
+        X
 
 if __name__ == "__main__":
     # Load Titanic dataset from OpenML
