@@ -96,7 +96,7 @@ class Parser:
     def one_hot_encode(self, train_df, test_df):
         """Apply one-hot encoding to categorical columns."""
         cat_cols = self.get_categorical_columns(train_df)
-        encoder = OneHotEncoder(sparse=False, handle_unknown="ignore")
+        encoder = OneHotEncoder(sparse_output=False, handle_unknown="ignore")
         encoder.fit(train_df[cat_cols])
 
         train_encoded = encoder.transform(train_df[cat_cols])
@@ -187,3 +187,7 @@ if __name__ == "__main__":
     train_unit, test_unit = parser.unit_normalize(train_filled, test_filled)
     train_le, test_le, encoders = parser.label_encode(train_filled.copy(), test_filled.copy())
     train_ohe, test_ohe, ohe = parser.one_hot_encode(train_filled.copy(), test_filled.copy())
+
+    print(train_ohe.head())
+
+# 
