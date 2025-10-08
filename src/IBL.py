@@ -1,26 +1,28 @@
 from sklearn.datasets import fetch_openml
 import pandas as pd
 import numpy as np
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
+
 
 
 class IBL:
-    def __init__(self,  k=5, metric="euclidean", vote="modified_plurality", types=None):
+    def __init__(self):
         """
         k-Instance Based Learner (k-NN) with:
         - metrics: 'euclidean', 'cosine', 'heom'
         - votes: 'modified_plurality', 'borda'
         - types: (list of 'numeric'/'categorical') when using HEOM.
         """
-        self.k = int(k)
-        self.metric = metric
-        self.vote = vote
-        self.types = types
 
     def fit(self, X, y):
         self.X = X.reset_index(drop=True)
         self.y = y.reset_index(drop=True)
 
-    def run(self, test_X):
+    def run(self, test_X, k=5, metric="euclidean", vote="modified_plurality", types=None):
+        self.k = int(k)
+        self.metric = metric
+        self.vote = vote
+        self.types = types
         predictions = []
 
         for i, instance in test_X.iterrows():
@@ -172,6 +174,28 @@ if __name__ == "__main__":
     ibl = IBL()
     ibl.fit(X, y)
     preds = ibl.run(X_test)
+
+    # Helpful basic metrics
+    acc = accuracy_score(y_test, preds)
+    prec = precision_score(y_test, preds, average='weighted', zero_division=0)
+    rec = recall_score(y_test, preds, average='weighted', zero_division=0)
+    f1 = f1_score(y_test, preds, average='weighted', zero_division=0)
+
+    # Display results
+    print("Performance Metrics:")
+    print(f"Accuracy:  {acc:.4f}")
+    print(f"Precision: {prec:.4f}")
+    print(f"Recall:    {rec:.4f}")
+    print(f"F1-score:  {f1:.4f}")
+
+    # Confusion matrix + detailed report
+    print("\nConfusion Matrix:")
+    print(confusion_matrix(y_test, preds))
+
+    print("\nClassification Report:")
+    print(classification_report(y_test, preds, zero_division=0))
+
+    
 
     print("Predictions:", preds)
     print("Ground truth:", list(y_test))
