@@ -64,11 +64,11 @@ class Parser:
         numeric_cols = self.get_numeric_columns(train_matrix)
         return scale(train_matrix[numeric_cols]), scale(test_matrix[numeric_cols])
 
-    def mean_normalize(self, train_df, test_df):
+    def mean_normalize(self, train_matrix, test_matrix):
         """Mean normalization (values centered around 0)."""
-        numeric_cols = self.get_numeric_columns(train_df)
+        numeric_cols = self.get_numeric_columns(train_matrix)
         scaler = StandardScaler(with_mean=True, with_std=False)
-        return scaler.fit_transform(train_df[numeric_cols]), scaler.transform(test_df[numeric_cols])
+        return scaler.fit_transform(train_matrix[numeric_cols]), scaler.transform(test_matrix[numeric_cols])
 
     def minmax_scale(self, train_matrix, test_matrix):
         """Min-Max scaling (0 to 1)."""
