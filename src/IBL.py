@@ -1,4 +1,5 @@
 from sklearn.datasets import fetch_openml
+from Parser import Parser
 import pandas as pd
 import numpy as np
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
@@ -14,25 +15,26 @@ class IBL:
         - types: (list of 'numeric'/'categorical') when using HEOM.
         """
 
-    def fit(self, X, y):
-        self.X = X.reset_index(drop=True)
-        self.y = y.reset_index(drop=True)
+    def fit(self, train_matrix):
+        self.train_matrix = train_matrix.reset_index(drop=True)
 
-    def run(self, test_matrix, k=5, metric="euclidean", vote="modified_plurality", types=None):
+    def run(self, test_matrix, k=5, metric="euclidean", vote="modified_plurality", retention_policy= "never_retain",types=None):
         self.k = int(k)
         self.metric = metric
         self.vote = vote
         self.types = types
+        X = self.train_matrix.iloc[:, :-1]
+        y = self.train_matrix.iloc[:, -1]
         predictions = []
 
         for i, instance in test_matrix.iterrows():
             
             if self.metric == "euclidean":
-                distances = self._euclidean_distance(self.X, instance)
+                distances = self._euclidean_distance(X, instance)
             elif self.metric == "cosine":
-                distances = self._cosine_distance(self.X, instance)
+                distances = self._cosine_distance(X, instance)
             elif self.metric == "heom":
-                distances = self._heom_distance(self.X, instance)
+                distances = self._heom_distance(X, instance)
             else:
                 raise ValueError(f"Unknown metric: {self.metric}")
 
@@ -40,8 +42,8 @@ class IBL:
             k_nearest = distances.nsmallest(self.k, "Distance")
 
             # Majority voting (basic)
-            neighbor_labels = self.y.loc[k_nearest["Index"]].tolist()
-            print(self.X.loc[k_nearest["Index"]], self.y.loc[k_nearest["Index"]])
+            neighbor_labels = y.loc[k_nearest["Index"]].tolist()
+            print(X.loc[k_nearest["Index"]], y.loc[k_nearest["Index"]])
 
             if self.vote == "modified_plurality":
                 pred = self._vote_modified_plurality(neighbor_labels)
@@ -52,6 +54,18 @@ class IBL:
                 pred = pd.Series(neighbor_labels).mode().iloc[0]
 
             predictions.append(pred)
+
+            if retention_policy == "never_retain":
+                pass
+            elif retention_policy == "always_retain":
+                train_matrix.append(instance)
+            elif retention_policy == "different_class_retention":
+                if instance.iloc[:, -1] != pred:
+                    train_matrix.append(instance)
+            elif retention_policy == "DD_retention":
+                pass
+            else:
+                raise ValueError(f"Unknown retention policy: {retention_policy}")
 
         return predictions
 
@@ -160,26 +174,31 @@ class IBL:
             if cls in tied:
                 return cls
 
-    def Never_Retain(self, X, instance):
-        return X
-
-    def Always_Retain(self, X, instance):
-        X
-
 if __name__ == "__main__":
-    # Load Titanic dataset from OpenML
+
+    base_path = "datasetsCBR/datasetsCBR"
+    dataset_name = "adult"
+
+    parser = Parser(base_path, dataset_name, num_splits=5)
+
+    train_matrix, test_matrix = parser.get_split(0)
+
+    # Testing IBL
+
+    retention_policy = ""
+    ibl = IBL()
+    ibl.fit(train_matrix)
+    preds = ibl.run(test_matrix)
+"""
     titanic = fetch_openml(name="titanic", version=1, as_frame=True)
 
     X = titanic.get('data')[:1000]
     y = titanic.get('target')[:1000]
+
+
     X_test = titanic.get('data')[1100:1110]  # smaller test for demo
     y_test = titanic.get('target')[1100:1110]
-
-    # Testing IBL
-    ibl = IBL()
-    ibl.fit(X, y)
-    preds = ibl.run(X_test)
-
+    
     # Helpful basic metrics
     acc = accuracy_score(y_test, preds)
     prec = precision_score(y_test, preds, average='weighted', zero_division=0)
@@ -204,3 +223,5 @@ if __name__ == "__main__":
 
     print("Predictions:", preds)
     print("Ground truth:", list(y_test))
+
+"""
