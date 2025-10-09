@@ -5,6 +5,7 @@ import numpy as np
 from collections import Counter
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
 
+from distance_measures import cosine_distance, euclidean_distance
 from preprocessing_types import EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
 
 
@@ -17,10 +18,10 @@ class IBL:
         - types: (list of 'numeric'/'categorical') when using HEOM.
         """
 
-    def fit(self, train_matrix):
+    def fit(self, train_matrix: pd.DataFrame):
         self.train_matrix = train_matrix.reset_index(drop=True)
 
-    def run(self, test_matrix, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
+    def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="different_class_retention", types=None):
         import time
         self.k = int(k)
         self.metric = metric
@@ -32,16 +33,17 @@ class IBL:
 
         total_start = time.time()
         for i, instance in test_matrix.iterrows():
+            x_instance, y_instance = instance.iloc[:-1], instance.iloc[-1]
             step_start = time.time()
 
             # Distance calculation
             dist_start = time.time()
             if self.metric == "euclidean":
-                distances = self._euclidean_distance(X, instance)
+                distances = euclidean_distance(X, x_instance)
             elif self.metric == "cosine":
-                distances = self._cosine_distance(X, instance)
+                distances = cosine_distance(X, x_instance)
             elif self.metric == "heom":
-                distances = self._heom_distance(X, instance)
+                distances = self._heom_distance(X, x_instance)
             else:
                 raise ValueError(f"Unknown metric: {self.metric}")
             dist_end = time.time()
@@ -72,10 +74,12 @@ class IBL:
             if retention_policy == "never_retain":
                 pass
             elif retention_policy == "always_retain":
-                self.train_matrix.append(instance)
+                self.train_matrix = pd.concat(
+                    [self.train_matrix, instance.to_frame().T], ignore_index=True)
             elif retention_policy == "different_class_retention":
-                if instance.iloc[:, -1] != pred:
-                    self.train_matrix.append(instance)
+                if instance.iloc[-1] != pred:
+                    self.train_matrix = pd.concat(
+                        [self.train_matrix, instance.to_frame().T], ignore_index=True)
             elif retention_policy == "DD_retention":
                 neighbor_labels = y.loc[k_nearest["Index"]].tolist()
 
@@ -100,48 +104,6 @@ class IBL:
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
         return predictions
-
-    def _euclidean_distance(self, X, instance):
-        """Compute Euclidean distance of one instance to all in X"""
-        distances = []
-        for index, row in X.iterrows():
-            d = 0.0
-            for idx, value in enumerate(row.values):
-                test_val = instance.iloc[idx]
-
-                # Skip missing values
-                if pd.isna(value) or pd.isna(test_val):
-                    continue
-
-                # Numeric distance
-                if np.issubdtype(type(value), np.number):
-                    d += (value - test_val) ** 2
-                else:
-                    # Categorical mismatch
-                    d += 1
-
-            d = np.sqrt(d)
-            distances.append((index, d))
-
-        return pd.DataFrame(distances, columns=["Index", "Distance"])
-
-    def _cosine_distance(self, X, instance):
-        """Compute cosine distance (1 - sim) of one instance to all in X."""
-
-        distances = []
-
-        x = instance.values.astype(float)
-        x_norm = np.linalg.norm(x) or 1.0
-
-        for index, row in X.iterrows():
-            a = row.values.astype(float)
-            a_norm = np.linalg.norm(a) or 1.0
-            sim = float(np.dot(a, x)) / (a_norm * x_norm)
-
-            d = 1.0 - sim
-            distances.append((index, d))
-
-        return pd.DataFrame(distances, columns=["Index", "Distance"])
 
     def _heom_distance(self, X, instance):
         """IMPORTANT: numeric uses squared diff (in [0,1]); categorical uses overlap (0 if equal else 1)."""
@@ -210,10 +172,6 @@ class IBL:
 
 
 if __name__ == "__main__":
-
-    base_path = "datasetsCBR/datasetsCBR"
-    dataset_name = "adult"
-
     parser = Parser(
         base_path="datasetsCBR/datasetsCBR",
         dataset_name="adult",
@@ -224,9 +182,7 @@ if __name__ == "__main__":
     )
 
     train_matrix, test_matrix = parser.get_split(0)
-
     # Testing IBL
-
     retention_policy = ""
     ibl = IBL()
     ibl.fit(train_matrix)
