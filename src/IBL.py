@@ -7,7 +7,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 
 from distance_measures import cosine_distance, euclidean_distance
 from preprocessing_types import EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
-
+from retention_policies import retention_polcies
 
 class IBL:
     def __init__(self):
@@ -21,7 +21,7 @@ class IBL:
     def fit(self, train_matrix: pd.DataFrame):
         self.train_matrix = train_matrix.reset_index(drop=True)
 
-    def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="different_class_retention", types=None):
+    def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
         import time
         self.k = int(k)
         self.metric = metric
@@ -71,31 +71,9 @@ class IBL:
 
             # Retention policy
             retention_start = time.time()
-            if retention_policy == "never_retain":
-                pass
-            elif retention_policy == "always_retain":
-                self.train_matrix = pd.concat(
-                    [self.train_matrix, instance.to_frame().T], ignore_index=True)
-            elif retention_policy == "different_class_retention":
-                if instance.iloc[-1] != pred:
-                    self.train_matrix = pd.concat(
-                        [self.train_matrix, instance.to_frame().T], ignore_index=True)
-            elif retention_policy == "DD_retention":
-                neighbor_labels = y.loc[k_nearest["Index"]].tolist()
 
-                # Compute degree of disagreement (DD)
-                vote_counts = Counter(neighbor_labels)
-                total_votes = sum(vote_counts.values())
-                proportions = [count / total_votes for count in vote_counts.values()]
-                DD = 1 - max(proportions)
+            retention_polcies(retention_policy, self.train_matrix, instance, k_nearest, pred, y)
 
-                # Retain if disagreement above threshold
-                dd_threshold = 0.4  # you can tune this value
-                if DD >= dd_threshold:
-                    self.train_matrix = pd.concat([self.train_matrix, instance.to_frame().T])
-            else:
-                raise ValueError(
-                    f"Unknown retention policy: {retention_policy}")
             retention_end = time.time()
 
             step_end = time.time()
@@ -174,7 +152,7 @@ class IBL:
 if __name__ == "__main__":
     parser = Parser(
         base_path="datasetsCBR/datasetsCBR",
-        dataset_name="adult",
+        dataset_name="autos",
         normalization_strategy=NormalizationStrategy.STANDARDIZE,
         encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.MEAN,
@@ -187,6 +165,32 @@ if __name__ == "__main__":
     ibl = IBL()
     ibl.fit(train_matrix)
     preds = ibl.run(test_matrix)
+     
+    print(preds)
+    print(test_matrix.iloc[:, -1])
+
+    # Helpful basic metrics
+    acc = accuracy_score(test_matrix.iloc[:,-1], preds)
+    prec = precision_score(test_matrix.iloc[:,-1], preds, average='weighted', zero_division=0)
+    rec = recall_score(test_matrix.iloc[:,-1], preds, average='weighted', zero_division=0)
+    f1 = f1_score(test_matrix.iloc[:,-1], preds, average='weighted', zero_division=0)
+
+    # Display results
+    print("Performance Metrics:")
+    print(f"Accuracy:  {acc:.4f}")
+    print(f"Precision: {prec:.4f}")
+    print(f"Recall:    {rec:.4f}")
+    print(f"F1-score:  {f1:.4f}")
+
+    # Confusion matrix + detailed report
+    print("\nConfusion Matrix:")
+    print(confusion_matrix(test_matrix.iloc[:, -1], preds))
+
+    print("\nClassification Report:")
+    print(classification_report(test_matrix.iloc[:,-1], preds, zero_division=0))
+
+    print("Predictions:", preds)
+    print("Ground truth:", list(test_matrix.iloc[:,-1]))
 """
     titanic = fetch_openml(name="titanic", version=1, as_frame=True)
 
