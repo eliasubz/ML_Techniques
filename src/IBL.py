@@ -2,6 +2,7 @@ from sklearn.datasets import fetch_openml
 from Parser import Parser
 import pandas as pd
 import numpy as np
+from collections import Counter
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
 
 from preprocessing_types import EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
@@ -19,7 +20,7 @@ class IBL:
     def fit(self, train_matrix):
         self.train_matrix = train_matrix.reset_index(drop=True)
 
-    def run(self, test_matrix, k=5, metric="euclidean", vote="modified_plurality", retention_policy="never_retain", types=None):
+    def run(self, test_matrix, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
         import time
         self.k = int(k)
         self.metric = metric
@@ -71,12 +72,23 @@ class IBL:
             if retention_policy == "never_retain":
                 pass
             elif retention_policy == "always_retain":
-                train_matrix.append(instance)
+                self.train_matrix.append(instance)
             elif retention_policy == "different_class_retention":
                 if instance.iloc[:, -1] != pred:
-                    train_matrix.append(instance)
+                    self.train_matrix.append(instance)
             elif retention_policy == "DD_retention":
-                pass
+                neighbor_labels = y.loc[k_nearest["Index"]].tolist()
+
+                # Compute degree of disagreement (DD)
+                vote_counts = Counter(neighbor_labels)
+                total_votes = sum(vote_counts.values())
+                proportions = [count / total_votes for count in vote_counts.values()]
+                DD = 1 - max(proportions)
+
+                # Retain if disagreement above threshold
+                dd_threshold = 0.4  # you can tune this value
+                if DD >= dd_threshold:
+                    self.train_matrix = pd.concat([self.train_matrix, instance.to_frame().T])
             else:
                 raise ValueError(
                     f"Unknown retention policy: {retention_policy}")
