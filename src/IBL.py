@@ -1,8 +1,11 @@
 from sklearn.datasets import fetch_openml
+from Parser import Parser
 import pandas as pd
 import numpy as np
+from collections import Counter
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
 
+from preprocessing_types import EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
 
 
 class IBL:
@@ -14,34 +17,44 @@ class IBL:
         - types: (list of 'numeric'/'categorical') when using HEOM.
         """
 
-    def fit(self, X, y):
-        self.X = X.reset_index(drop=True)
-        self.y = y.reset_index(drop=True)
+    def fit(self, train_matrix):
+        self.train_matrix = train_matrix.reset_index(drop=True)
 
-    def run(self, test_matrix, k=5, metric="euclidean", vote="modified_plurality", types=None):
+    def run(self, test_matrix, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
+        import time
         self.k = int(k)
         self.metric = metric
         self.vote = vote
         self.types = types
+        X = self.train_matrix.iloc[:, :-1]
+        y = self.train_matrix.iloc[:, -1]
         predictions = []
 
+        total_start = time.time()
         for i, instance in test_matrix.iterrows():
-            
+            step_start = time.time()
+
+            # Distance calculation
+            dist_start = time.time()
             if self.metric == "euclidean":
-                distances = self._euclidean_distance(self.X, instance)
+                distances = self._euclidean_distance(X, instance)
             elif self.metric == "cosine":
-                distances = self._cosine_distance(self.X, instance)
+                distances = self._cosine_distance(X, instance)
             elif self.metric == "heom":
-                distances = self._heom_distance(self.X, instance)
+                distances = self._heom_distance(X, instance)
             else:
                 raise ValueError(f"Unknown metric: {self.metric}")
+            dist_end = time.time()
 
             # Sort by distance and get k nearest
+            sort_start = time.time()
             k_nearest = distances.nsmallest(self.k, "Distance")
+            sort_end = time.time()
 
-            # Majority voting (basic)
-            neighbor_labels = self.y.loc[k_nearest["Index"]].tolist()
-            print(self.X.loc[k_nearest["Index"]], self.y.loc[k_nearest["Index"]])
+            # Voting
+            vote_start = time.time()
+            neighbor_labels = y.loc[k_nearest["Index"]].tolist()
+            # print(X.loc[k_nearest["Index"]], y.loc[k_nearest["Index"]])
 
             if self.vote == "modified_plurality":
                 pred = self._vote_modified_plurality(neighbor_labels)
@@ -50,9 +63,42 @@ class IBL:
             else:
                 # basic majority
                 pred = pd.Series(neighbor_labels).mode().iloc[0]
+            vote_end = time.time()
 
             predictions.append(pred)
 
+            # Retention policy
+            retention_start = time.time()
+            if retention_policy == "never_retain":
+                pass
+            elif retention_policy == "always_retain":
+                self.train_matrix.append(instance)
+            elif retention_policy == "different_class_retention":
+                if instance.iloc[:, -1] != pred:
+                    self.train_matrix.append(instance)
+            elif retention_policy == "DD_retention":
+                neighbor_labels = y.loc[k_nearest["Index"]].tolist()
+
+                # Compute degree of disagreement (DD)
+                vote_counts = Counter(neighbor_labels)
+                total_votes = sum(vote_counts.values())
+                proportions = [count / total_votes for count in vote_counts.values()]
+                DD = 1 - max(proportions)
+
+                # Retain if disagreement above threshold
+                dd_threshold = 0.4  # you can tune this value
+                if DD >= dd_threshold:
+                    self.train_matrix = pd.concat([self.train_matrix, instance.to_frame().T])
+            else:
+                raise ValueError(
+                    f"Unknown retention policy: {retention_policy}")
+            retention_end = time.time()
+
+            step_end = time.time()
+            print(f"Instance {i}: dist={dist_end-dist_start:.4f}s, sort={sort_end-sort_start:.4f}s, vote={vote_end-vote_start:.4f}s, retention={retention_end-retention_start:.4f}s, total={step_end-step_start:.4f}s")
+
+        total_end = time.time()
+        print(f"Total time for all instances: {total_end-total_start:.2f}s")
         return predictions
 
     def _euclidean_distance(self, X, instance):
@@ -96,11 +142,12 @@ class IBL:
             distances.append((index, d))
 
         return pd.DataFrame(distances, columns=["Index", "Distance"])
-    
+
     def _heom_distance(self, X, instance):
         """IMPORTANT: numeric uses squared diff (in [0,1]); categorical uses overlap (0 if equal else 1)."""
         if self.types is None:
-            raise ValueError("HEOM requires 'types' aligned to columns (pass at init).")
+            raise ValueError(
+                "HEOM requires 'types' aligned to columns (pass at init).")
 
         distances = []
         x_vals = instance.values
@@ -122,7 +169,7 @@ class IBL:
             distances.append((index, np.sqrt(d2)))
 
         return pd.DataFrame(distances, columns=["Index", "Distance"])
-    
+
     @staticmethod
     def _vote_modified_plurality(labels_in_rank):
         """
@@ -131,7 +178,8 @@ class IBL:
         """
         idxs = list(range(len(labels_in_rank)))
         while True:
-            vals, counts = np.unique([labels_in_rank[i] for i in idxs], return_counts=True)
+            vals, counts = np.unique([labels_in_rank[i]
+                                     for i in idxs], return_counts=True)
             m = counts.max()
             winners = [v for v, c in zip(vals, counts) if c == m]
             if len(winners) == 1:
@@ -160,26 +208,39 @@ class IBL:
             if cls in tied:
                 return cls
 
-    def Never_Retain(self, X, instance):
-        return X
-
-    def Always_Retain(self, X, instance):
-        X
 
 if __name__ == "__main__":
-    # Load Titanic dataset from OpenML
+
+    base_path = "datasetsCBR/datasetsCBR"
+    dataset_name = "adult"
+
+    parser = Parser(
+        base_path="datasetsCBR/datasetsCBR",
+        dataset_name="adult",
+        normalization_strategy=NormalizationStrategy.STANDARDIZE,
+        encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
+        missing_values_numeric_strategy=MissingValuesNumericStrategy.MEAN,
+        missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE
+    )
+
+    train_matrix, test_matrix = parser.get_split(0)
+
+    # Testing IBL
+
+    retention_policy = ""
+    ibl = IBL()
+    ibl.fit(train_matrix)
+    preds = ibl.run(test_matrix)
+"""
     titanic = fetch_openml(name="titanic", version=1, as_frame=True)
 
     X = titanic.get('data')[:1000]
     y = titanic.get('target')[:1000]
+
+
     X_test = titanic.get('data')[1100:1110]  # smaller test for demo
     y_test = titanic.get('target')[1100:1110]
-
-    # Testing IBL
-    ibl = IBL()
-    ibl.fit(X, y)
-    preds = ibl.run(X_test)
-
+    
     # Helpful basic metrics
     acc = accuracy_score(y_test, preds)
     prec = precision_score(y_test, preds, average='weighted', zero_division=0)
@@ -204,3 +265,5 @@ if __name__ == "__main__":
 
     print("Predictions:", preds)
     print("Ground truth:", list(y_test))
+
+"""
