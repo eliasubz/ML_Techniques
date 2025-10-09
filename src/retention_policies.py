@@ -12,15 +12,27 @@ def retention_polcies(retention_policy, train_matrix, instance, k_nearest, pred,
     elif retention_policy == "DD_retention":
         neighbor_labels = y.loc[k_nearest["Index"]].tolist()
 
-        # Compute degree of disagreement (DD)
+        # Count occurrences of each class
         vote_counts = Counter(neighbor_labels)
-        total_votes = sum(vote_counts.values())
-        proportions = [count / total_votes for count in vote_counts.values()]
-        DD = 1 - max(proportions)
 
-        # Retain if disagreement above threshold
-        dd_threshold = 0.4  # you can tune this value
-        if DD >= dd_threshold:
+        # Total number of distinct classes among neighbors
+        num_classes = len(vote_counts)
+
+        # Identify majority class and its count
+        majority_class, majority_cases = vote_counts.most_common(1)[0]
+
+        # Remaining cases = total cases - majority class cases
+        remaining_cases = sum(vote_counts.values()) - majority_cases
+
+        # Avoid division by zero
+        if num_classes > 1 and majority_cases > 0:
+            d = remaining_cases / ((num_classes - 1) * majority_cases)
+        else:
+            d = 0  # or some defined fallback
+
+        # Retain instance if d >= threshold
+        d_threshold = 0.4  # you can tune this
+        if d >= d_threshold:
             train_matrix = pd.concat([train_matrix, instance.to_frame().T])
     else:
         raise ValueError(
