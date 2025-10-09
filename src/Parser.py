@@ -2,7 +2,7 @@
 import os
 import pandas as pd
 from scipy.io import arff
-
+import numpy as np
 from encoding import encode_data
 from missing_values import handle_missing_values
 from normalization import normalize_data
@@ -78,9 +78,35 @@ class Parser:
             train_matrix = pd.DataFrame(train_data)
             test_matrix = pd.DataFrame(test_data)
 
+            train_matrix = self._decode_arff_df(train_matrix)
+            test_matrix  = self._decode_arff_df(test_matrix)
+
             data_splits.append((train_matrix, test_matrix))
 
         return data_splits
+    
+    @staticmethod
+    def _decode_arff_df(df: pd.DataFrame) -> pd.DataFrame:
+        """Decode byte strings to str and normalize ARFF missing markers to NaN."""
+        out = df.copy()
+
+        # decode bytes/bytearray -> str
+        for c in out.columns:
+            col = out[c]
+            if col.dtype == object:
+                out[c] = col.apply(
+                    lambda v: v.decode("utf-8") if isinstance(v, (bytes, bytearray)) else v
+                )
+
+        # normalize common ARFF missing tokens to NaN
+        out.replace({b'?': np.nan, '?': np.nan, ' ?': np.nan, '? ': np.nan}, inplace=True)
+
+        # whitespace around strings
+        for c in out.columns:
+            if out[c].dtype == object:
+                out[c] = out[c].astype(str).str.strip()
+
+        return out
 
     def preprocess(self, data_splits):
         """Apply preprocessing steps to all train and test DataFrames using the configured strategies."""
