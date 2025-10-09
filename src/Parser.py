@@ -86,22 +86,37 @@ class Parser:
         """Apply preprocessing steps to all train and test DataFrames using the configured strategies."""
         processed_splits = []
         for train_df, test_df in data_splits:
+
+            target_col = train_df.columns[-1]
+
+            y_train = train_df[target_col].reset_index(drop=True)
+            y_test  = test_df[target_col].reset_index(drop=True)
+
+            X_train = train_df.drop(columns=[target_col]).reset_index(drop=True)
+            X_test  = test_df.drop(columns=[target_col]).reset_index(drop=True)
+
+
+             # Handle Missing Values
+            if self.missing_values_numeric_strategy is not None and self.missing_values_categorical_strategy is not None:
+                X_train, X_test = handle_missing_values(
+                    X_train, X_test, self.missing_values_numeric_strategy.value, self.missing_values_categorical_strategy.value)
+
             # Normalization
             if self.normalization_strategy is not None:
-                train_df, test_df = normalize_data(
-                    train_df, test_df, self.normalization_strategy)
+                X_train, X_test = normalize_data(
+                    X_train, X_test, self.normalization_strategy)
 
             # Encoding
             if self.encoding_strategy is not None:
-                train_df, test_df, _ = encode_data(
-                    train_df, test_df, self.encoding_strategy)
-
-            # Handle Missing Values
-            if self.missing_values_numeric_strategy is not None and self.missing_values_categorical_strategy is not None:
-                train_df, test_df = handle_missing_values(
-                    train_df, test_df, self.missing_values_numeric_strategy.value, self.missing_values_categorical_strategy.value)
-
-            processed_splits.append((train_df, test_df))
+                X_train, X_test, _ = encode_data(
+                    X_train, X_test, self.encoding_strategy)
+                
+            train_out = pd.concat([X_train.reset_index(drop=True),
+                               y_train.rename(target_col)], axis=1)
+            test_out  = pd.concat([X_test.reset_index(drop=True),
+                               y_test.rename(target_col)], axis=1)
+                
+            processed_splits.append((train_out, test_out))
 
         return processed_splits
 
@@ -114,7 +129,7 @@ if __name__ == "__main__":
     # Example usage
     parser = Parser(
         base_path="datasetsCBR/datasetsCBR",
-        dataset_name="adult",
+        dataset_name="autos",
         normalization_strategy=NormalizationStrategy.STANDARDIZE,
         encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.DROP,
@@ -124,3 +139,4 @@ if __name__ == "__main__":
     train, test = parser.get_split(0)
     print(train.head())
     print(list(test.columns.values))
+
