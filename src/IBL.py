@@ -5,7 +5,7 @@ import numpy as np
 from collections import Counter
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
 
-from distance_measures import cosine_distance, euclidean_distance
+from distance_measures import cosine_distance, euclidean_distance, heom_distance
 from preprocessing_types import EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
 from retention_policies import retention_polcies
 
@@ -43,7 +43,7 @@ class IBL:
             elif self.metric == "cosine":
                 distances = cosine_distance(X, x_instance)
             elif self.metric == "heom":
-                distances = self._heom_distance(X, x_instance)
+                distances = heom_distance(X, x_instance, types)
             else:
                 raise ValueError(f"Unknown metric: {self.metric}")
             dist_end = time.time()
@@ -82,33 +82,6 @@ class IBL:
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
         return predictions
-
-    def _heom_distance(self, X, instance):
-        """IMPORTANT: numeric uses squared diff (in [0,1]); categorical uses overlap (0 if equal else 1)."""
-        if self.types is None:
-            raise ValueError(
-                "HEOM requires 'types' aligned to columns (pass at init).")
-
-        distances = []
-        x_vals = instance.values
-        for index, row in X.iterrows():
-            d2 = 0.0
-            r_vals = row.values
-            for j, t in enumerate(self.types):
-                a, b = r_vals[j], x_vals[j]
-
-                # Skip missing values if any slip through
-                if pd.isna(a) or pd.isna(b):
-                    continue
-
-                if t == "numeric":
-                    diff = float(a) - float(b)
-                    d2 += diff * diff
-                else:  # categorical
-                    d2 += 0.0 if a == b else 1.0
-            distances.append((index, np.sqrt(d2)))
-
-        return pd.DataFrame(distances, columns=["Index", "Distance"])
 
     @staticmethod
     def _vote_modified_plurality(labels_in_rank):
@@ -154,17 +127,18 @@ if __name__ == "__main__":
         base_path="datasetsCBR/datasetsCBR",
         dataset_name="autos",
         normalization_strategy=NormalizationStrategy.STANDARDIZE,
-        encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
+        encoding_strategy=EncodingStrategy.LABEL_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.MEAN,
         missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE
     )
 
     train_matrix, test_matrix = parser.get_split(0)
+    types = parser.get_types()
     # Testing IBL
     retention_policy = ""
     ibl = IBL()
     ibl.fit(train_matrix)
-    preds = ibl.run(test_matrix)
+    preds = ibl.run(test_matrix, k=5, metric="heom", vote="modified_plurality", retention_policy="DD_retention", types=types)
      
     print(preds)
     print(test_matrix.iloc[:, -1])
@@ -191,39 +165,3 @@ if __name__ == "__main__":
 
     print("Predictions:", preds)
     print("Ground truth:", list(test_matrix.iloc[:,-1]))
-"""
-    titanic = fetch_openml(name="titanic", version=1, as_frame=True)
-
-    X = titanic.get('data')[:1000]
-    y = titanic.get('target')[:1000]
-
-
-    X_test = titanic.get('data')[1100:1110]  # smaller test for demo
-    y_test = titanic.get('target')[1100:1110]
-    
-    # Helpful basic metrics
-    acc = accuracy_score(y_test, preds)
-    prec = precision_score(y_test, preds, average='weighted', zero_division=0)
-    rec = recall_score(y_test, preds, average='weighted', zero_division=0)
-    f1 = f1_score(y_test, preds, average='weighted', zero_division=0)
-
-    # Display results
-    print("Performance Metrics:")
-    print(f"Accuracy:  {acc:.4f}")
-    print(f"Precision: {prec:.4f}")
-    print(f"Recall:    {rec:.4f}")
-    print(f"F1-score:  {f1:.4f}")
-
-    # Confusion matrix + detailed report
-    print("\nConfusion Matrix:")
-    print(confusion_matrix(y_test, preds))
-
-    print("\nClassification Report:")
-    print(classification_report(y_test, preds, zero_division=0))
-
-    
-
-    print("Predictions:", preds)
-    print("Ground truth:", list(y_test))
-
-"""

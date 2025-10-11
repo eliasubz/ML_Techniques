@@ -56,6 +56,7 @@ class Parser:
         self.missing_values_categorical_strategy = missing_values_categorical_strategy
 
         data_splits = self._load_arff_dataset()
+        self.types = self._save_feature_types(data_splits)
         data_splits = self.preprocess(data_splits)
         self.data_splits = data_splits
 
@@ -107,6 +108,23 @@ class Parser:
                 out[c] = out[c].astype(str).str.strip()
 
         return out
+    
+    @staticmethod
+    def _save_feature_types(data_splits: pd.DataFrame):
+        """
+        Save per-column types from TRAIN only, before any encoding.
+        Returns (types).
+        """
+        train_df = data_splits[0][0] # First train fold
+        target_col = train_df.columns[-1]
+
+        X_train = train_df.drop(columns=[target_col]).reset_index(drop=True)
+
+        types = ["numeric" if pd.api.types.is_numeric_dtype(X_train.dtypes[c])
+            else "categorical"
+            for c in X_train.columns]
+        
+        return types
 
     def preprocess(self, data_splits):
         """Apply preprocessing steps to all train and test DataFrames using the configured strategies."""
@@ -120,7 +138,6 @@ class Parser:
 
             X_train = train_df.drop(columns=[target_col]).reset_index(drop=True)
             X_test  = test_df.drop(columns=[target_col]).reset_index(drop=True)
-
 
              # Handle Missing Values
             if self.missing_values_numeric_strategy is not None and self.missing_values_categorical_strategy is not None:
@@ -141,7 +158,7 @@ class Parser:
                                y_train.rename(target_col)], axis=1)
             test_out  = pd.concat([X_test.reset_index(drop=True),
                                y_test.rename(target_col)], axis=1)
-                
+
             processed_splits.append((train_out, test_out))
 
         return processed_splits
@@ -149,7 +166,9 @@ class Parser:
     def get_split(self, index: int):
         """Return train and test DataFrame for a given split index."""
         return self.data_splits[index]
-
+    
+    def get_types(self):
+        return self.types
 
 if __name__ == "__main__":
     # Example usage
@@ -157,12 +176,14 @@ if __name__ == "__main__":
         base_path="datasetsCBR/datasetsCBR",
         dataset_name="autos",
         normalization_strategy=NormalizationStrategy.STANDARDIZE,
-        encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
+        encoding_strategy=EncodingStrategy.LABEL_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.DROP,
         missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE
     )
 
     train, test = parser.get_split(0)
+    types = parser.get_types() # Only used for OHE
+    print(types)
     print(train.head())
     print(list(test.columns.values))
 
