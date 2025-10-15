@@ -77,7 +77,7 @@ class IBL:
             retention_end = time.time()
 
             step_end = time.time()
-            # print(f"Instance {i}: dist={dist_end-dist_start:.4f}s, sort={sort_end-sort_start:.4f}s, vote={vote_end-vote_start:.4f}s, retention={retention_end-retention_start:.4f}s, total={step_end-step_start:.4f}s")
+            print(f"Instance {i}/{len(test_matrix)}: dist={dist_end-dist_start:.4f}s, sort={sort_end-sort_start:.4f}s, vote={vote_end-vote_start:.4f}s, retention={retention_end-retention_start:.4f}s, total={step_end-step_start:.4f}s")
 
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
