@@ -30,52 +30,65 @@ class IBL:
         self.metric = metric
         self.vote = vote
         self.types = types
-        X = self.train_matrix.iloc[:, :-1]
-        y = self.train_matrix.iloc[:, -1]
+        
+        test_arr = test_matrix.to_numpy()             
+        self.X_test_np = test_arr[:, :-1]                        
+        self.y_test_np = test_arr[:, -1] 
+        
         predictions = []
+        n_test = self.X_test_np.shape[0]
 
         total_start = time.time()
-        for i, instance in test_matrix.iterrows():
-            x_instance, y_instance = instance.iloc[:-1], instance.iloc[-1]
-            step_start = time.time()
 
-            # Distance calculation
+        for i in range(n_test):
+
+            step_start = time.time()
+        
+            x_instance = self.X_test_np[i, :]
+            y_instance = self.y_test_np[i]
+
             dist_start = time.time()
             if self.metric == "euclidean":
-                distances = euclidean_distance(X, x_instance)
+                distances = euclidean_distance(self.X_np, x_instance)
             elif self.metric == "cosine":
-                distances = cosine_distance(X, x_instance)
+                distances = cosine_distance(self.X_np, x_instance)
             elif self.metric == "heom":
-                distances = heom_distance(X, x_instance, types)
+                distances = heom_distance(self.X_np, x_instance, types)
             else:
                 raise ValueError(f"Unknown metric: {self.metric}")
             dist_end = time.time()
 
-            # Sort by distance and get k nearest
             sort_start = time.time()
-            k_nearest = distances.nsmallest(self.k, "Distance")
+            if self.k >= distances.shape[0]:
+                idx_k = np.arange(distances.shape[0])
+            else:
+                idx_k = np.argpartition(distances, self.k - 1)[: self.k]
+            order_k = np.argsort(distances[idx_k], kind="stable")
+            idx_k = idx_k[order_k]
             sort_end = time.time()
 
-            # Voting
             vote_start = time.time()
-            neighbor_labels = y.loc[k_nearest["Index"]].tolist()
-            # print(X.loc[k_nearest["Index"]], y.loc[k_nearest["Index"]])
+            neighbor_labels = self.y_np[idx_k].tolist()
 
+            # Voting (unchanged)
             if self.vote == "modified_plurality":
                 pred = self._vote_modified_plurality(neighbor_labels)
             elif self.vote == "borda":
                 pred = self._vote_borda(neighbor_labels)
             else:
-                # basic majority
-                pred = pd.Series(neighbor_labels).mode().iloc[0]
+                pred = Counter(neighbor_labels).most_common(1)[0][0]
             vote_end = time.time()
-           
+
             predictions.append(pred)
 
-            # Retention policy
+
+            # Retention
             retention_start = time.time()
 
-            retention_polcies(retention_policy, self.train_matrix, instance, k_nearest, pred, y)
+            instance_pd = test_matrix.iloc[i]
+            y_pd = self.train_matrix.iloc[:, -1]
+            k_nearest = pd.DataFrame({"Index": idx_k, "Distance": distances[idx_k]})
+            retention_polcies(retention_policy, self.train_matrix, instance_pd, k_nearest, pred, y_pd)
 
             retention_end = time.time()
 
@@ -84,6 +97,56 @@ class IBL:
 
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
+
+        # for i, instance in test_matrix.iterrows():
+        #     x_instance, y_instance = instance.iloc[:-1], instance.iloc[-1]
+        #     step_start = time.time()
+
+        #     # Distance calculation
+        #     dist_start = time.time()
+        #     if self.metric == "euclidean":
+        #         distances = euclidean_distance(X, x_instance)
+        #     elif self.metric == "cosine":
+        #         distances = cosine_distance(X, x_instance)
+        #     elif self.metric == "heom":
+        #         distances = heom_distance(X, x_instance, types)
+        #     else:
+        #         raise ValueError(f"Unknown metric: {self.metric}")
+        #     dist_end = time.time()
+
+        #     # Sort by distance and get k nearest
+        #     sort_start = time.time()
+        #     k_nearest = distances.nsmallest(self.k, "Distance")
+        #     sort_end = time.time()
+
+        #     # Voting
+        #     vote_start = time.time()
+        #     neighbor_labels = y.loc[k_nearest["Index"]].tolist()
+        #     # print(X.loc[k_nearest["Index"]], y.loc[k_nearest["Index"]])
+
+        #     if self.vote == "modified_plurality":
+        #         pred = self._vote_modified_plurality(neighbor_labels)
+        #     elif self.vote == "borda":
+        #         pred = self._vote_borda(neighbor_labels)
+        #     else:
+        #         # basic majority
+        #         pred = pd.Series(neighbor_labels).mode().iloc[0]
+        #     vote_end = time.time()
+           
+        #     predictions.append(pred)
+
+        #     # Retention policy
+        #     retention_start = time.time()
+
+        #     retention_polcies(retention_policy, self.train_matrix, instance, k_nearest, pred, y)
+
+        #     retention_end = time.time()
+
+        #     step_end = time.time()
+        #     print(f"Instance {i}/{len(test_matrix)}: dist={dist_end-dist_start:.4f}s, sort={sort_end-sort_start:.4f}s, vote={vote_end-vote_start:.4f}s, retention={retention_end-retention_start:.4f}s, total={step_end-step_start:.4f}s")
+
+        # total_end = time.time()
+        # print(f"Total time for all instances: {total_end-total_start:.2f}s")
         return predictions
 
     @staticmethod
