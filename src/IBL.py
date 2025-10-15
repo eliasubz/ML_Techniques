@@ -20,6 +20,9 @@ class IBL:
 
     def fit(self, train_matrix: pd.DataFrame):
         self.train_matrix = train_matrix.reset_index(drop=True)
+        arr = self.train_matrix.to_numpy()
+        self.X_np = arr[:, :-1]
+        self.y_np = arr[:, -1]
 
     def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
         import time
