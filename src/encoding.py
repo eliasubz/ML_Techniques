@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.preprocessing import (
     LabelEncoder, OneHotEncoder
 )
-from preprocessing_types import EncodingStrategy
+from processing_types import EncodingStrategy
 from utils import get_categorical_columns
 
 

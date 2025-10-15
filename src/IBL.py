@@ -6,8 +6,10 @@ from collections import Counter
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
 
 from distance_measures import cosine_distance, euclidean_distance, heom_distance
-from preprocessing_types import EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
-from retention_policies import retention_polcies
+from preallocated_matrix import PreallocatedMatrix
+from processing_types import RetentionPolicy, EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
+from retention_policies import retention_policies
+
 
 class IBL:
     def __init__(self):
@@ -19,10 +21,9 @@ class IBL:
         """
 
     def fit(self, train_matrix: pd.DataFrame):
-        self.train_matrix = train_matrix.reset_index(drop=True)
-        arr = self.train_matrix.to_numpy()
-        self.X_np = arr[:, :-1]
-        self.y_np = arr[:, -1]
+        np_train_matrix = train_matrix.reset_index(drop=True).to_numpy()
+        self.X = np_train_matrix[:, :-1]
+        self.y = np_train_matrix[:, -1]
 
     def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
         import time
@@ -30,30 +31,36 @@ class IBL:
         self.metric = metric
         self.vote = vote
         self.types = types
-        
-        test_arr = test_matrix.to_numpy()             
-        self.X_test_np = test_arr[:, :-1]                        
-        self.y_test_np = test_arr[:, -1] 
-        
+
+        test_arr = test_matrix.to_numpy()
+        self.X_test = test_arr[:, :-1].astype(np.float64)
+        self.y_test = test_arr[:, -1]
+
+        preallocatedMatrix = PreallocatedMatrix(
+            self.X.shape[0] + self.X_test.shape[0], self.X.shape[1])
+        preallocatedMatrix.append_matrix(self.X)
+        self.X = preallocatedMatrix
+
         predictions = []
-        n_test = self.X_test_np.shape[0]
+        n_test = self.X_test.shape[0]
 
         total_start = time.time()
 
         for i in range(n_test):
 
             step_start = time.time()
-        
-            x_instance = self.X_test_np[i, :]
-            y_instance = self.y_test_np[i]
+
+            x_instance = self.X_test[i, :]
+            y_instance = self.y_test[i]
 
             dist_start = time.time()
             if self.metric == "euclidean":
-                distances = euclidean_distance(self.X_np, x_instance)
+                distances = euclidean_distance(self.X.get_filled(), x_instance)
             elif self.metric == "cosine":
-                distances = cosine_distance(self.X_np, x_instance)
+                distances = cosine_distance(self.X.get_filled(), x_instance)
             elif self.metric == "heom":
-                distances = heom_distance(self.X_np, x_instance, types)
+                distances = heom_distance(
+                    self.X.get_filled(), x_instance, types)
             else:
                 raise ValueError(f"Unknown metric: {self.metric}")
             dist_end = time.time()
@@ -68,7 +75,7 @@ class IBL:
             sort_end = time.time()
 
             vote_start = time.time()
-            neighbor_labels = self.y_np[idx_k].tolist()
+            neighbor_labels = self.y[idx_k].tolist()
 
             # Voting (unchanged)
             if self.vote == "modified_plurality":
@@ -81,19 +88,21 @@ class IBL:
 
             predictions.append(pred)
 
-
             # Retention
             retention_start = time.time()
 
-            instance_pd = test_matrix.iloc[i]
-            y_pd = self.train_matrix.iloc[:, -1]
-            k_nearest = pd.DataFrame({"Index": idx_k, "Distance": distances[idx_k]})
-            retention_polcies(retention_policy, self.train_matrix, instance_pd, k_nearest, pred, y_pd)
+            should_retain = retention_policies(
+                retention_policy, instance_class=y_instance, pred=pred, k_nearest_labels=neighbor_labels)
+
+            if should_retain:
+                self.X.append_column(x_instance)
+                # TODO: optimize y storage as well
+                self.y = np.append(self.y, y_instance)
 
             retention_end = time.time()
 
             step_end = time.time()
-            # print(f"Instance {i}/{len(test_matrix)}: dist={dist_end-dist_start:.4f}s, sort={sort_end-sort_start:.4f}s, vote={vote_end-vote_start:.4f}s, retention={retention_end-retention_start:.4f}s, total={step_end-step_start:.4f}s")
+            print(f"Instance {i}/{len(test_matrix)}: dist={dist_end-dist_start:.5f}s, sort={sort_end-sort_start:.5f}s, vote={vote_end-vote_start:.5f}s, retention={retention_end-retention_start:.5f}s, total={step_end-step_start:.5f}s")
 
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
@@ -132,7 +141,7 @@ class IBL:
         #         # basic majority
         #         pred = pd.Series(neighbor_labels).mode().iloc[0]
         #     vote_end = time.time()
-           
+
         #     predictions.append(pred)
 
         #     # Retention policy
@@ -147,6 +156,7 @@ class IBL:
 
         # total_end = time.time()
         # print(f"Total time for all instances: {total_end-total_start:.2f}s")
+        print("Final training set size:", self.X.get_filled().shape)
         return predictions
 
     @staticmethod
@@ -201,33 +211,37 @@ if __name__ == "__main__":
     train_matrix, test_matrix = parser.get_split(0)
     types = parser.get_types()
     # Testing IBL
-    retention_policy = ""
     ibl = IBL()
     ibl.fit(train_matrix)
-    preds = ibl.run(test_matrix, k=5, metric="heom", vote="modified_plurality", retention_policy="DD_retention", types=types)
-     
-    print(preds)
-    print(test_matrix.iloc[:, -1])
+    preds = ibl.run(test_matrix, k=5, metric="heom", vote="modified_plurality",
+                    retention_policy=RetentionPolicy.DD_RETENTION, types=types)
 
-    # Helpful basic metrics
-    acc = accuracy_score(test_matrix.iloc[:,-1], preds)
-    prec = precision_score(test_matrix.iloc[:,-1], preds, average='weighted', zero_division=0)
-    rec = recall_score(test_matrix.iloc[:,-1], preds, average='weighted', zero_division=0)
-    f1 = f1_score(test_matrix.iloc[:,-1], preds, average='weighted', zero_division=0)
+    # print(preds)
+    # print(test_matrix.iloc[:, -1])
 
-    # Display results
-    print("Performance Metrics:")
-    print(f"Accuracy:  {acc:.4f}")
-    print(f"Precision: {prec:.4f}")
-    print(f"Recall:    {rec:.4f}")
-    print(f"F1-score:  {f1:.4f}")
+    # # Helpful basic metrics
+    # acc = accuracy_score(test_matrix.iloc[:, -1], preds)
+    # prec = precision_score(
+    #     test_matrix.iloc[:, -1], preds, average='weighted', zero_division=0)
+    # rec = recall_score(
+    #     test_matrix.iloc[:, -1], preds, average='weighted', zero_division=0)
+    # f1 = f1_score(test_matrix.iloc[:, -1], preds,
+    #               average='weighted', zero_division=0)
 
-    # Confusion matrix + detailed report
-    print("\nConfusion Matrix:")
-    print(confusion_matrix(test_matrix.iloc[:, -1], preds))
+    # # Display results
+    # print("Performance Metrics:")
+    # print(f"Accuracy:  {acc:.4f}")
+    # print(f"Precision: {prec:.4f}")
+    # print(f"Recall:    {rec:.4f}")
+    # print(f"F1-score:  {f1:.4f}")
 
-    print("\nClassification Report:")
-    print(classification_report(test_matrix.iloc[:,-1], preds, zero_division=0))
+    # # Confusion matrix + detailed report
+    # print("\nConfusion Matrix:")
+    # print(confusion_matrix(test_matrix.iloc[:, -1], preds))
 
-    print("Predictions:", preds)
-    print("Ground truth:", list(test_matrix.iloc[:,-1]))
+    # print("\nClassification Report:")
+    # print(classification_report(
+    #     test_matrix.iloc[:, -1], preds, zero_division=0))
+
+    # print("Predictions:", preds)
+    # print("Ground truth:", list(test_matrix.iloc[:, -1]))

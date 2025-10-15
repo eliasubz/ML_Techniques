@@ -6,7 +6,7 @@ import numpy as np
 from encoding import encode_data
 from missing_values import handle_missing_values
 from normalization import normalize_data
-from preprocessing_types import (
+from processing_types import (
     NormalizationStrategy, EncodingStrategy, MissingValuesNumericStrategy, MissingValuesCategoricalStrategy
 )
 
@@ -80,12 +80,12 @@ class Parser:
             test_matrix = pd.DataFrame(test_data)
 
             train_matrix = self._decode_arff_df(train_matrix)
-            test_matrix  = self._decode_arff_df(test_matrix)
+            test_matrix = self._decode_arff_df(test_matrix)
 
             data_splits.append((train_matrix, test_matrix))
 
         return data_splits
-    
+
     @staticmethod
     def _decode_arff_df(df: pd.DataFrame) -> pd.DataFrame:
         """Decode byte strings to str and normalize ARFF missing markers to NaN."""
@@ -96,11 +96,13 @@ class Parser:
             col = out[c]
             if col.dtype == object:
                 out[c] = col.apply(
-                    lambda v: v.decode("utf-8") if isinstance(v, (bytes, bytearray)) else v
+                    lambda v: v.decode(
+                        "utf-8") if isinstance(v, (bytes, bytearray)) else v
                 )
 
         # normalize common ARFF missing tokens to NaN
-        out.replace({b'?': np.nan, '?': np.nan, ' ?': np.nan, '? ': np.nan}, inplace=True)
+        out.replace({b'?': np.nan, '?': np.nan, ' ?': np.nan,
+                    '? ': np.nan}, inplace=True)
 
         # whitespace around strings
         for c in out.columns:
@@ -108,22 +110,22 @@ class Parser:
                 out[c] = out[c].astype(str).str.strip()
 
         return out
-    
+
     @staticmethod
     def _save_feature_types(data_splits: pd.DataFrame):
         """
         Save per-column types from TRAIN only, before any encoding.
         Returns (types).
         """
-        train_df = data_splits[0][0] # First train fold
+        train_df = data_splits[0][0]  # First train fold
         target_col = train_df.columns[-1]
 
         X_train = train_df.drop(columns=[target_col]).reset_index(drop=True)
 
         types = ["numeric" if pd.api.types.is_numeric_dtype(X_train.dtypes[c])
-            else "categorical"
-            for c in X_train.columns]
-        
+                 else "categorical"
+                 for c in X_train.columns]
+
         return types
 
     def preprocess(self, data_splits):
@@ -134,12 +136,13 @@ class Parser:
             target_col = train_df.columns[-1]
 
             y_train = train_df[target_col].reset_index(drop=True)
-            y_test  = test_df[target_col].reset_index(drop=True)
+            y_test = test_df[target_col].reset_index(drop=True)
 
-            X_train = train_df.drop(columns=[target_col]).reset_index(drop=True)
-            X_test  = test_df.drop(columns=[target_col]).reset_index(drop=True)
+            X_train = train_df.drop(
+                columns=[target_col]).reset_index(drop=True)
+            X_test = test_df.drop(columns=[target_col]).reset_index(drop=True)
 
-             # Handle Missing Values
+            # Handle Missing Values
             if self.missing_values_numeric_strategy is not None and self.missing_values_categorical_strategy is not None:
                 X_train, X_test = handle_missing_values(
                     X_train, X_test, self.missing_values_numeric_strategy.value, self.missing_values_categorical_strategy.value)
@@ -153,11 +156,11 @@ class Parser:
             if self.encoding_strategy is not None:
                 X_train, X_test, _ = encode_data(
                     X_train, X_test, self.encoding_strategy)
-                
+
             train_out = pd.concat([X_train.reset_index(drop=True),
-                               y_train.rename(target_col)], axis=1)
-            test_out  = pd.concat([X_test.reset_index(drop=True),
-                               y_test.rename(target_col)], axis=1)
+                                   y_train.rename(target_col)], axis=1)
+            test_out = pd.concat([X_test.reset_index(drop=True),
+                                  y_test.rename(target_col)], axis=1)
 
             processed_splits.append((train_out, test_out))
 
@@ -166,7 +169,7 @@ class Parser:
     def get_split(self, index: int):
         """Return train and test DataFrame for a given split index."""
         return self.data_splits[index]
-    
+
     def get_types(self):
         return self.types
 
@@ -182,8 +185,7 @@ if __name__ == "__main__":
     )
 
     train, test = parser.get_split(0)
-    types = parser.get_types() # Only used for OHE
+    types = parser.get_types()  # Only used for OHE
     print(types)
     print(train.head())
     print(list(test.columns.values))
-

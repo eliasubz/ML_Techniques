@@ -3,7 +3,7 @@ from sklearn.preprocessing import (
     scale, StandardScaler, MinMaxScaler, Normalizer,
 )
 
-from preprocessing_types import NormalizationStrategy
+from processing_types import NormalizationStrategy
 from utils import get_numeric_columns
 
 

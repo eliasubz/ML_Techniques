@@ -1,4 +1,4 @@
-from preprocessing_types import MissingValuesCategoricalStrategy, MissingValuesNumericStrategy
+from processing_types import MissingValuesCategoricalStrategy, MissingValuesNumericStrategy
 from utils import get_categorical_columns, get_numeric_columns
 from sklearn.experimental import enable_iterative_imputer  # noqa
 from sklearn.impute import IterativeImputer
