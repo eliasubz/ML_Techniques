@@ -10,8 +10,8 @@ def euclidean_distance(X, x):
     # dists = np.sqrt(np.sum((X_np - instance_np) ** 2, axis=1))
     # return pd.DataFrame({"Index": np.arange(X.shape[0]), "Distance": dists})
 
-    X = np.asarray(X)
-    x = np.asarray(x)
+    X = np.asarray(X, dtype=float)
+    x = np.asarray(x, dtype=float)
                                       
     diff = X - x
 

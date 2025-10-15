@@ -93,7 +93,7 @@ class IBL:
             retention_end = time.time()
 
             step_end = time.time()
-            print(f"Instance {i}/{len(test_matrix)}: dist={dist_end-dist_start:.4f}s, sort={sort_end-sort_start:.4f}s, vote={vote_end-vote_start:.4f}s, retention={retention_end-retention_start:.4f}s, total={step_end-step_start:.4f}s")
+            # print(f"Instance {i}/{len(test_matrix)}: dist={dist_end-dist_start:.4f}s, sort={sort_end-sort_start:.4f}s, vote={vote_end-vote_start:.4f}s, retention={retention_end-retention_start:.4f}s, total={step_end-step_start:.4f}s")
 
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
@@ -191,9 +191,9 @@ class IBL:
 if __name__ == "__main__":
     parser = Parser(
         base_path="datasetsCBR/datasetsCBR",
-        dataset_name="pen-based",
+        dataset_name="adult",
         normalization_strategy=NormalizationStrategy.MINMAX_SCALING,
-        encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
+        encoding_strategy=EncodingStrategy.LABEL_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.MEDIAN,
         missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE
     )
