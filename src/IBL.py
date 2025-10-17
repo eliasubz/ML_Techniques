@@ -205,7 +205,8 @@ if __name__ == "__main__":
         normalization_strategy=NormalizationStrategy.MINMAX_SCALING,
         encoding_strategy=EncodingStrategy.LABEL_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.MEDIAN,
-        missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE
+        missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE,
+        # faster_parser=True,
     )
 
     train_matrix, test_matrix = parser.get_split(0)
