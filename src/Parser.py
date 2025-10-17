@@ -21,7 +21,8 @@ class Parser:
                  encoding_strategy: EncodingStrategy = None,
                  missing_values_numeric_strategy: MissingValuesNumericStrategy = None,
                  missing_values_categorical_strategy: MissingValuesCategoricalStrategy = None,
-                 num_splits: int = 10):
+                 num_splits: int = 10,
+                 faster_parser: bool = False):
         """
         Initialize the Parser with dataset path and preprocessing strategies.
 
@@ -54,15 +55,40 @@ class Parser:
         self.encoding_strategy = encoding_strategy
         self.missing_values_numeric_strategy = missing_values_numeric_strategy
         self.missing_values_categorical_strategy = missing_values_categorical_strategy
-
-        data_splits = self._load_arff_dataset()
+        if faster_parser: 
+            data_splits = self._load_arff_dataset(True)
+        else: 
+            data_splits = self._load_arff_dataset()
         self.types = self._save_feature_types(data_splits)
         data_splits = self.preprocess(data_splits)
         self.data_splits = data_splits
 
-    def _load_arff_dataset(self):
+    def _load_arff_dataset(self, faster_parser: bool = False):
         data_splits = []
         dataset_path = os.path.join(self.base_path, self.dataset_name)
+
+        # Return only 1 split and skip the rest
+        if faster_parser: 
+            i = 0
+            fold_num = f"{i:06d}"
+            train_file = os.path.join(
+                dataset_path, f"{self.dataset_name}.fold.{fold_num}.train.arff")
+            test_file = os.path.join(
+                dataset_path, f"{self.dataset_name}.fold.{fold_num}.test.arff")
+            # Load ARFF files
+            train_data, _ = arff.loadarff(train_file)
+            test_data, _ = arff.loadarff(test_file)
+
+            # Convert to pandas DataFrame
+            train_matrix = pd.DataFrame(train_data)
+            test_matrix = pd.DataFrame(test_data)
+
+            train_matrix = self._decode_arff_df(train_matrix)
+            test_matrix = self._decode_arff_df(test_matrix)
+
+            data_splits.append((train_matrix, test_matrix))
+            return data_splits
+            
 
         for i in range(self.num_splits):
             fold_num = f"{i:06d}"
@@ -166,9 +192,21 @@ class Parser:
 
         return processed_splits
 
-    def get_split(self, index: int):
-        """Return train and test DataFrame for a given split index."""
-        return self.data_splits[index]
+    def get_split(self, index: int, reduced: float = 1.0):
+        """
+        Return (train_df, test_df) for a given split index.
+        
+        If `reduced` < 1, return a random subset of each matrix 
+        of size = reduced * len(train/test).
+        """
+        train_df, test_df = self.data_splits[index]
+
+        if 0 < reduced < 1:
+            # Randomly sample a subset
+            train_df = train_df.sample(frac=reduced, random_state=42)
+            test_df = test_df.sample(frac=reduced, random_state=42)
+
+        return train_df, test_df
 
     def get_types(self):
         return self.types
@@ -177,11 +215,29 @@ if __name__ == "__main__":
     # Example usage
     parser = Parser(
         base_path="datasetsCBR/datasetsCBR",
-        dataset_name="autos",
+        dataset_name="adult",
         normalization_strategy=NormalizationStrategy.STANDARDIZE,
         encoding_strategy=EncodingStrategy.LABEL_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.DROP,
         missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE
+    )
+
+    train, test = parser.get_split(0)
+    types = parser.get_types()  # Only used for OHE
+    print(types)
+    print(train.head())
+    print(list(test.columns.values))
+
+
+    # Testing fast parser
+    parser = Parser(
+        base_path="datasetsCBR/datasetsCBR",
+        dataset_name="adult",
+        normalization_strategy=NormalizationStrategy.STANDARDIZE,
+        encoding_strategy=EncodingStrategy.LABEL_ENCODE,
+        missing_values_numeric_strategy=MissingValuesNumericStrategy.DROP,
+        missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE,
+        faster_parser=True,
     )
 
     train, test = parser.get_split(0)
