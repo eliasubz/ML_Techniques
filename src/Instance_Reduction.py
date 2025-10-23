@@ -12,10 +12,6 @@ from distance_measures import cosine_distance, euclidean_distance, heom_distance
 import time
 import numpy as np
 
-
-
-
-
 def condensed_nearest_neighbor(D_matrix: pd.DataFrame, distance_metric="euclidean", types=None):
 
     X = D_matrix.iloc[:, :-1].to_numpy()
@@ -160,8 +156,14 @@ from scipy.spatial.distance import cdist
 from collections import Counter
 
 
-
 def edited_nearest_neighbor(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean", types=None):
+    X = D_matrix.iloc[:, :-1].to_numpy()
+    y = D_matrix.iloc[:, -1].to_numpy()
+    return enn(X,y=y, k=k, distance_metric=distance_metric)
+
+
+def enn(X ,y=y, k=k, distance_metric='euclidean'):
+
     """
     Edited Nearest Neighbor (ENN)
     Removes instances that disagree with the majority of their k nearest neighbors.
@@ -174,8 +176,8 @@ def edited_nearest_neighbor(D_matrix: pd.DataFrame, k=3, distance_metric="euclid
     Returns:
         (X_reduced, y_reduced, kept_indices): reduced dataset and indices kept
     """
-    X = D_matrix.iloc[:, :-1].to_numpy()
-    y = D_matrix.iloc[:, -1].to_numpy()
+    # X = D_matrix.iloc[:, :-1].to_numpy()
+    # y = D_matrix.iloc[:, -1].to_numpy()
     n = len(X)
 
     kept_indices = []
@@ -211,31 +213,31 @@ def edited_nearest_neighbor(D_matrix: pd.DataFrame, k=3, distance_metric="euclid
 
     return X[kept_indices], y[kept_indices], kept_indices
 
-# def renn(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean", max_iter=10):
-#     """
-#     Repeated Edited Nearest Neighbor (RENN)
-#     Repeatedly applies ENN until no more instances are removed.
-#     """
-#     X = D_matrix.iloc[:, :-1].to_numpy()
-#     y = D_matrix.iloc[:, -1].to_numpy()
+def renn(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean", max_iter=10):
+    """
+    Repeated Edited Nearest Neighbor (RENN)
+    Repeatedly applies ENN until no more instances are removed.
+    """
+    X = D_matrix.iloc[:, :-1].to_numpy()
+    y = D_matrix.iloc[:, -1].to_numpy()
 
-#     iteration = 1
-#     while iteration <= max_iter:
-#         X_new, y_new, kept_indices = edited_nearest_neighbor(X, y, k=k, distance_metric=distance_metric)
-#         removed = len(X) - len(X_new)
-#         print(f"RENN Iteration {iteration}: removed {removed} instances")
+    iteration = 1
+    while iteration <= max_iter:
+        X_new, y_new, kept_indices = enn(X,y=y, k=k, distance_metric=distance_metric)
+        removed = len(X) - len(X_new)
+        print(f"RENN Iteration {iteration}: removed {removed} instances")
 
-#         if removed == 0:
-#             print("No more instances removed → stopping.")
-#             break
+        if removed == 0:
+            print("No more instances removed → stopping.")
+            break
 
-#         X, y = X_new, y_new
-#         iteration += 1
+        X, y = X_new, y_new
+        iteration += 1
 
-#     print(f"Instances before: {len(D_matrix)}")
-#     print(f"Instances after RENN: {len(X)} ({round(len(X)/len(D_matrix)*100,2)}% retained)")
+    print(f"Instances before: {len(D_matrix)}")
+    print(f"Instances after RENN: {len(X)} ({round(len(X)/len(D_matrix)*100,2)}% retained)")
 
-#     return X, y, kept_indices
+    return X, y, kept_indices
 
 
 
