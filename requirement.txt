@@ -4,3 +4,5 @@ scipy
 scikit-learn
 pytest
 pytest-cov
+scikit-posthocs
+matplotlib

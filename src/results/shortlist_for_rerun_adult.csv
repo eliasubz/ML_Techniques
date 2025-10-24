@@ -1,0 +1,11 @@
+dataset,metric,k,vote,retention
+adult,cosine,7,borda,RetentionPolicy.ALWAYS_RETAIN
+adult,cosine,7,borda,RetentionPolicy.DD_RETENTION
+adult,cosine,7,borda,RetentionPolicy.DIFFERENT_CLASS_RETENTION
+adult,cosine,5,borda,RetentionPolicy.ALWAYS_RETAIN
+adult,cosine,5,borda,RetentionPolicy.DD_RETENTION
+adult,cosine,5,modified_plurality,RetentionPolicy.ALWAYS_RETAIN
+adult,cosine,7,borda,RetentionPolicy.NEVER_RETAIN
+adult,cosine,5,modified_plurality,RetentionPolicy.DD_RETENTION
+adult,cosine,5,borda,RetentionPolicy.DIFFERENT_CLASS_RETENTION
+adult,cosine,5,modified_plurality,RetentionPolicy.DIFFERENT_CLASS_RETENTION
