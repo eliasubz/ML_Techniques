@@ -9,7 +9,13 @@ from utils import get_categorical_columns
 def label_encode(train_df, test_df):
     """Apply label encoding to categorical columns."""
     cat_cols = get_categorical_columns(train_df)
-    encoders = {}
+    post_encoding_types = []
+    for col in train_df.columns:
+        if col in cat_cols:
+            post_encoding_types.append("categorical")
+        else:
+            post_encoding_types.append("numerical")
+
     train_df_encoded = train_df.copy()
     test_df_encoded = test_df.copy()
     for col in cat_cols:
@@ -21,8 +27,8 @@ def label_encode(train_df, test_df):
         test_df_encoded[col] = test_vals.map(
             lambda s: le.transform([s])[0] if s in le.classes_ else -1
         )
-        encoders[col] = le
-    return train_df_encoded, test_df_encoded, encoders
+
+    return train_df_encoded, test_df_encoded, post_encoding_types
 
 
 def one_hot_encode(train_df, test_df):
@@ -45,17 +51,24 @@ def one_hot_encode(train_df, test_df):
     train_df_encoded = pd.concat([train_df_encoded, train_encoded_df], axis=1)
     test_df_encoded = pd.concat([test_df_encoded, test_encoded_df], axis=1)
 
-    return train_df_encoded, test_df_encoded, encoder
+    # Build types array: use "numerical" for numerical columns, "categorical" for one-hot columns
+    post_encoding_types = []
+    for col in train_df_encoded.columns:
+        if col in encoder.get_feature_names_out(cat_cols):
+            post_encoding_types.append("categorical")
+        else:
+            post_encoding_types.append("numerical")
+    return train_df_encoded, test_df_encoded, post_encoding_types
 
 
 def encode_data(train_df, test_df, strategy=EncodingStrategy.LABEL_ENCODE):
     """Encode categorical columns in train and test DataFrames based on the specified strategy."""
     if strategy == EncodingStrategy.LABEL_ENCODE:
         train_df, test_df, encoders = label_encode(train_df, test_df)
+        return train_df, test_df, encoders
     elif strategy == EncodingStrategy.ONE_HOT_ENCODE:
-        train_df, test_df, encoders = one_hot_encode(train_df, test_df)
+        train_df, test_df, types = one_hot_encode(train_df, test_df)
+        return train_df, test_df, types
     else:
         raise ValueError(
             f"Unknown encoding strategy: {strategy}. Choose from {list(EncodingStrategy)}")
-
-    return train_df, test_df, encoders

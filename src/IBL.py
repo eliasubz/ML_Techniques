@@ -1,13 +1,13 @@
-from sklearn.datasets import fetch_openml
 from Parser import Parser
 import pandas as pd
 import numpy as np
 from collections import Counter
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
+import time
 
-from distance_measures import cosine_distance, euclidean_distance, heom_distance
+from distance_measures import cosine_distance, euclidean_distance, heom_distance, weighted_cosine_distance, weighted_euclidean_distance, weighted_heom_distance
+from feature_weighing import compute_feature_weights
 from preallocated_matrix import PreallocatedMatrix
-from processing_types import RetentionPolicy, EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
+from processing_types import FeatureWeightingMethod, RetentionPolicy, EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
 from retention_policies import retention_policies
 
 
@@ -19,6 +19,7 @@ class IBL:
         - votes: 'modified_plurality', 'borda'
         - types: (list of 'numeric'/'categorical') when using HEOM.
         """
+        self.feature_weights = None
 
     def fit(self, train_matrix: pd.DataFrame):
         np_train_matrix = train_matrix.reset_index(drop=True).to_numpy()
@@ -26,12 +27,10 @@ class IBL:
         self.y = np_train_matrix[:, -1]
 
     def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
-        import time
         self.k = int(k)
         self.metric = metric
         self.vote = vote
         self.types = types
-
         test_arr = test_matrix.to_numpy()
         self.X_test = test_arr[:, :-1].astype(np.float64)
         self.y_test = test_arr[:, -1]
@@ -54,15 +53,32 @@ class IBL:
             y_instance = self.y_test[i]
 
             dist_start = time.time()
-            if self.metric == "euclidean":
-                distances = euclidean_distance(self.X.get_filled(), x_instance)
-            elif self.metric == "cosine":
-                distances = cosine_distance(self.X.get_filled(), x_instance)
-            elif self.metric == "heom":
-                distances = heom_distance(
-                    self.X.get_filled(), x_instance, types)
+            if self.feature_weights is not None:
+                # Use weighted distance functions
+                if self.metric == "euclidean":
+                    distances = weighted_euclidean_distance(
+                        self.X.get_filled(), x_instance, self.feature_weights)
+                elif self.metric == "cosine":
+                    distances = weighted_cosine_distance(
+                        self.X.get_filled(), x_instance, self.feature_weights)
+                elif self.metric == "heom":
+                    distances = weighted_heom_distance(
+                        self.X.get_filled(), x_instance, types, self.feature_weights)
+                else:
+                    raise ValueError(f"Unknown metric: {self.metric}")
             else:
-                raise ValueError(f"Unknown metric: {self.metric}")
+                # Use original distance functions
+                if self.metric == "euclidean":
+                    distances = euclidean_distance(
+                        self.X.get_filled(), x_instance)
+                elif self.metric == "cosine":
+                    distances = cosine_distance(
+                        self.X.get_filled(), x_instance)
+                elif self.metric == "heom":
+                    distances = heom_distance(
+                        self.X.get_filled(), x_instance, types)
+                else:
+                    raise ValueError(f"Unknown metric: {self.metric}")
             dist_end = time.time()
 
             sort_start = time.time()
@@ -159,6 +175,44 @@ class IBL:
         print("Final training set size:", self.X.get_filled().shape)
         return predictions
 
+    def fw_KIBLAlgorithm(self, test_matrix: pd.DataFrame, types, k=5, metric="euclidean", vote="modified_plurality",
+                         retention_policy="DD_retention", feature_weighting_method: FeatureWeightingMethod = FeatureWeightingMethod.INFORMATION_GAIN, post_encoding_types: list = None):
+        """
+        Feature-Weighted k-Instance Based Learning Algorithm.
+
+        This method computes feature weights from the training set and uses them to modify
+        the distance metrics during classification.
+
+        Args:
+            test_matrix: Test data
+            k: Number of nearest neighbors
+            metric: Distance metric ('euclidean', 'cosine', 'heom')
+            vote: Voting method ('modified_plurality', 'borda')
+            retention_policy: Retention policy for instances
+            types: Feature types for HEOM distance
+            feature_weighting_method: Method for computing feature weights (FeatureWeightingMethod)
+
+        Returns:
+            list: Predictions for test instances
+        """
+        self.types = types
+        self.feature_weights = compute_feature_weights(
+            self.X, self.y, method=feature_weighting_method, post_encoding_types=np.asarray(
+                post_encoding_types)
+        )
+
+        # Run the standard IBL algorithm with feature weights
+        predictions = self.run(
+            test_matrix=test_matrix,
+            k=k,
+            metric=metric,
+            vote=vote,
+            retention_policy=retention_policy,
+            types=types
+        )
+
+        return predictions
+
     @staticmethod
     def _vote_modified_plurality(labels_in_rank):
         """
@@ -203,7 +257,7 @@ if __name__ == "__main__":
         base_path="datasetsCBR/datasetsCBR",
         dataset_name="adult",
         normalization_strategy=NormalizationStrategy.MINMAX_SCALING,
-        encoding_strategy=EncodingStrategy.LABEL_ENCODE,
+        encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.MEDIAN,
         missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE,
         # faster_parser=True,
@@ -211,10 +265,12 @@ if __name__ == "__main__":
 
     train_matrix, test_matrix = parser.get_split(0)
     types = parser.get_types()
-    # Testing IBL
+
+    # Testing standard IBL
+    print("=== Testing Standard IBL ===")
     ibl = IBL()
     ibl.fit(train_matrix)
-    preds = ibl.run(test_matrix, k=5, metric="cosine", vote="modified_plurality",
+    preds = ibl.run(test_matrix, k=5, metric="heom", vote="modified_plurality",
                     retention_policy=RetentionPolicy.NEVER_RETAIN, types=types)
 
     # print(preds)

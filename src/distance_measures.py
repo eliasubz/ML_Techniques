@@ -8,6 +8,14 @@ def euclidean_distance(X: np.ndarray, x: np.ndarray):
     return np.sqrt(np.einsum('ij,ij->i', diff, diff))
 
 
+def weighted_euclidean_distance(X: np.ndarray, x: np.ndarray, weights: np.ndarray):
+    """Compute weighted Euclidean distance of one instance to all in X."""
+    diff = X - x
+    # Apply weights to squared differences
+    weighted_diff = diff * np.sqrt(weights)
+    return np.sqrt(np.einsum('ij,ij->i', weighted_diff, weighted_diff))
+
+
 def cosine_distance(X, x):
     """Compute cosine distance (1 - sim) of one instance to all in X."""
 
@@ -30,6 +38,23 @@ def cosine_distance(X, x):
     x_norm = np.linalg.norm(x) + 1e-12
 
     sims = (X @ x) / (X_norms * x_norm)
+    sims = np.clip(sims, -1.0, 1.0)
+    return 1.0 - sims
+
+
+def weighted_cosine_distance(X: np.ndarray, x: np.ndarray, weights: np.ndarray):
+    """Compute weighted cosine distance (1 - sim) of one instance to all in X."""
+    X = np.asarray(X, dtype=float)
+    x = np.asarray(x, dtype=float)
+
+    # Apply weights to features
+    X_weighted = X * np.sqrt(weights)
+    x_weighted = x * np.sqrt(weights)
+
+    X_norms = np.linalg.norm(X_weighted, axis=1) + 1e-12
+    x_norm = np.linalg.norm(x_weighted) + 1e-12
+
+    sims = (X_weighted @ x_weighted) / (X_norms * x_norm)
     sims = np.clip(sims, -1.0, 1.0)
     return 1.0 - sims
 
@@ -72,6 +97,7 @@ def heom_distance(X, x, types):
     X = np.asarray(X)
     x = np.asarray(x)
     types_arr = np.asarray(types)
+
     if types_arr.shape[0] != X.shape[1]:
         raise ValueError(
             f"'types' length ({types_arr.shape[0]}) != n_features ({X.shape[1]})")
@@ -92,5 +118,46 @@ def heom_distance(X, x, types):
         mismatches = (Xc != xc)
 
         cat_contrib = mismatches.sum(axis=1).astype(float)
+
+    return np.sqrt(num_contrib + cat_contrib)
+
+
+def weighted_heom_distance(X: np.ndarray, x: np.ndarray, types: list, weights: np.ndarray):
+    """
+    Weighted HEOM distance from one query instance to all rows in X, vectorized.
+    """
+    X = np.asarray(X)
+    x = np.asarray(x)
+    types_arr = np.asarray(types)
+    weights_arr = np.asarray(weights)
+
+    if types_arr.shape[0] != X.shape[1]:
+        raise ValueError(
+            f"'types' length ({types_arr.shape[0]}) != n_features ({X.shape[1]})")
+
+    if weights_arr.shape[0] != X.shape[1]:
+        raise ValueError(
+            f"'weights' length ({weights_arr.shape[0]}) != n_features ({X.shape[1]})")
+
+    is_num = (types_arr == "numeric")
+    is_cat = ~is_num
+
+    num_contrib = 0.0
+    if np.any(is_num):
+        Xn = X[:, is_num].astype(float, copy=False)
+        xn = x[is_num].astype(float, copy=False)
+        weights_num = weights_arr[is_num]
+        # Apply weights to numerical features
+        weighted_diff = (Xn - xn) * np.sqrt(weights_num)
+        num_contrib = np.sum(weighted_diff ** 2, axis=1)
+
+    cat_contrib = 0.0
+    if np.any(is_cat):
+        Xc = X[:, is_cat]
+        xc = x[is_cat]
+        weights_cat = weights_arr[is_cat]
+        mismatches = (Xc != xc)
+        # Apply weights to categorical features
+        cat_contrib = (mismatches * weights_cat).sum(axis=1).astype(float)
 
     return np.sqrt(num_contrib + cat_contrib)

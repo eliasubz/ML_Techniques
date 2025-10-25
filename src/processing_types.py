@@ -32,3 +32,8 @@ class RetentionPolicy(Enum):
     ALWAYS_RETAIN = 'always_retain'
     DIFFERENT_CLASS_RETENTION = 'different_class_retention'
     DD_RETENTION = 'DD_retention'
+
+
+class FeatureWeightingMethod(Enum):
+    RELIEFF = 'relieff'
+    INFORMATION_GAIN = 'information_gain'

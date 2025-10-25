@@ -55,12 +55,15 @@ class Parser:
         self.encoding_strategy = encoding_strategy
         self.missing_values_numeric_strategy = missing_values_numeric_strategy
         self.missing_values_categorical_strategy = missing_values_categorical_strategy
-        if faster_parser: 
+        self.post_encoding_types = None  # is calculated during processing
+        if faster_parser:
             data_splits = self._load_arff_dataset(True)
-        else: 
+        else:
             data_splits = self._load_arff_dataset()
+
         self.types = self._save_feature_types(data_splits)
         data_splits = self.preprocess(data_splits)
+
         self.data_splits = data_splits
 
     def _load_arff_dataset(self, faster_parser: bool = False):
@@ -68,7 +71,7 @@ class Parser:
         dataset_path = os.path.join(self.base_path, self.dataset_name)
 
         # Return only 1 split and skip the rest
-        if faster_parser: 
+        if faster_parser:
             i = 0
             fold_num = f"{i:06d}"
             train_file = os.path.join(
@@ -88,7 +91,6 @@ class Parser:
 
             data_splits.append((train_matrix, test_matrix))
             return data_splits
-            
 
         for i in range(self.num_splits):
             fold_num = f"{i:06d}"
@@ -180,8 +182,10 @@ class Parser:
 
             # Encoding
             if self.encoding_strategy is not None:
-                X_train, X_test, _ = encode_data(
+                X_train, X_test, post_encoding_types = encode_data(
                     X_train, X_test, self.encoding_strategy)
+            if self.post_encoding_types is None:
+                self.post_encoding_types = post_encoding_types
 
             train_out = pd.concat([X_train.reset_index(drop=True),
                                    y_train.rename(target_col)], axis=1)
@@ -195,7 +199,7 @@ class Parser:
     def get_split(self, index: int, reduced: float = 1.0):
         """
         Return (train_df, test_df) for a given split index.
-        
+
         If `reduced` < 1, return a random subset of each matrix 
         of size = reduced * len(train/test).
         """
@@ -209,7 +213,13 @@ class Parser:
         return train_df, test_df
 
     def get_types(self):
+        """Return feature types after encoding/preprocessing."""
         return self.types
+
+    def get_post_encoding_types(self):
+        """Return original feature types before preprocessing."""
+        return self.post_encoding_types
+
 
 if __name__ == "__main__":
     # Example usage
@@ -227,7 +237,6 @@ if __name__ == "__main__":
     print(types)
     print(train.head())
     print(list(test.columns.values))
-
 
     # Testing fast parser
     parser = Parser(
