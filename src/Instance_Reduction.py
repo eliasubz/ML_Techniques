@@ -1,6 +1,8 @@
 # Here we have the IR algorithms
+from collections import Counter
+import time
 import pandas as pd
-import random
+import numpy as np
 from Parser import Parser
 from processing_types import (
     NormalizationStrategy,
@@ -9,8 +11,6 @@ from processing_types import (
     MissingValuesCategoricalStrategy,
 )
 from distance_measures import cosine_distance, euclidean_distance, heom_distance
-import time
-import numpy as np
 
 def condensed_nearest_neighbor(D_matrix: pd.DataFrame, distance_metric="euclidean", types=None):
 
@@ -77,7 +77,7 @@ def condensed_nearest_neighbor(D_matrix: pd.DataFrame, distance_metric="euclidea
     return X[E_idx], y[E_idx], E_idx
 
 
-def mcnn(D_matrix: pd.DataFrame, distance_metric="euclidean", types=None, max_passes=10):
+def mcnn(D_matrix: pd.DataFrame, distance_metric="euclidean", max_passes=10):
     """
     Modified Condensed Nearest Neighbor (MCNN)
     Based on Devi & Murty (2002)
@@ -148,21 +148,15 @@ def mcnn(D_matrix: pd.DataFrame, distance_metric="euclidean", types=None, max_pa
 
     return X[E_idx], y[E_idx], E_idx
 
-# Edited Nearest Neighbor 
+# Edited Nearest Neighbor
 
-import numpy as np
-import pandas as pd
-from scipy.spatial.distance import cdist
-from collections import Counter
-
-
-def edited_nearest_neighbor(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean", types=None):
+def edited_nearest_neighbor(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean"):
     X = D_matrix.iloc[:, :-1].to_numpy()
     y = D_matrix.iloc[:, -1].to_numpy()
     return enn(X,y=y, k=k, distance_metric=distance_metric)
 
 
-def enn(X ,y=y, k=k, distance_metric='euclidean'):
+def enn(X ,y, k=3, distance_metric='euclidean'):
 
     """
     Edited Nearest Neighbor (ENN)
@@ -242,15 +236,14 @@ def renn(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean", max_iter=10):
 
 
 if __name__ == "__main__":
-    import time
 
     now = time.time()
-    base_path = "datasetsCBR/datasetsCBR"
-    dataset_name = "adult"
+    BASE_PATH = "datasetsCBR/datasetsCBR"
+    DATASET_NAME = "adult"
 
     parser = Parser(
-        base_path="datasetsCBR/datasetsCBR",
-        dataset_name="autos",
+        base_path=BASE_PATH,
+        dataset_name=DATASET_NAME,
         normalization_strategy=NormalizationStrategy.STANDARDIZE,
         encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.MEAN,
