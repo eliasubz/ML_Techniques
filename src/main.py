@@ -12,8 +12,8 @@ from model_types import Models
 
 
 BASE_PATH = "datasetsCBR/datasetsCBR/"
-NUM_SPLITS = 1
-RESULTS_PATH = "results/"
+NUM_SPLITS = 10
+RESULTS_PATH = "src/results/"
 
 
 if __name__ == "__main__":
