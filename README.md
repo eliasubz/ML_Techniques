@@ -2,6 +2,7 @@
 
 ### Team
 
+Group number: 6
 - Pandelis Laurens Symeonidis
 - Elias Miguel Leal Spohr
 - Lukas Gabriel Sekinger
