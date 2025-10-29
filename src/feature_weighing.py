@@ -47,6 +47,8 @@ def compute_information_gain_weights(X: np.ndarray, y: np.ndarray, categorical_f
     Returns:
         np.ndarray: Normalized feature weights (values between 0 and 1)
     """
+    if categorical_features_indices.size == 0:
+        categorical_features_indices = False
     mi_scores = mutual_info_classif(
         X, y, discrete_features=categorical_features_indices)
 
