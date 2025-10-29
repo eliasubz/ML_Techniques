@@ -9,10 +9,12 @@ from feature_weighing import compute_feature_weights
 from preallocated_matrix import PreallocatedMatrix
 from processing_types import FeatureWeightingMethod, RetentionPolicy, EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
 from retention_policies import retention_policies
+import instance_reduction
+
 
 
 class IBL:
-    def __init__(self):
+    def __init__(self, ):
         """
         k-Instance Based Learner (k-NN) with:
         - metrics: 'euclidean', 'cosine', 'heom'
@@ -21,10 +23,189 @@ class IBL:
         """
         self.feature_weights = None
 
-    def fit(self, train_matrix: pd.DataFrame):
-        np_train_matrix = train_matrix.reset_index(drop=True).to_numpy()
+    def ib3_instance_reduction(self, np_train_matrix: np.ndarray, timings: bool = False) -> np.ndarray:
+        """
+        Perform IB3 instance reduction on the training data.
+        Timers added for diagnostics (prints every 100 iterations).
+        """
+        print("Starting IB3 instance reduction...")
+
+        # --- Initialization ---
+        cd_idx = [0]  # Concept description
+        record_correct = np.zeros(len(np_train_matrix), dtype=int)
+        record_false = np.zeros(len(np_train_matrix), dtype=int)
+        acceptable_idx = np.zeros(len(np_train_matrix), dtype=int)
+        class_counts = Counter()
+        Z = 0.674  # 75% confidence interval z-score
+
+        X = np_train_matrix[:, :-1].astype(float)
+        y = np_train_matrix[:, -1]
+        n = len(X)
+
+        total_start = time.time()
+
+        # --- Main Loop ---
+        for i in range(1, n):
+
+            if i % 1000 == 0 or i == len(X) - 1: 
+                print(f"Processed {i}/{len(X)-1} instances...")
+            iter_start = time.time()
+
+            # Compute distances
+            t0 = time.time()
+            # If you have your own euclidean_distance function, replace cdist below
+            distances = euclidean_distance(X[cd_idx], X[i].reshape(1, -1)).ravel()
+            sorted_nearest_idx_in_cd = np.argsort(distances)
+            t1 = time.time()
+
+            # Classification decision
+            correct_classifications = (y[cd_idx][sorted_nearest_idx_in_cd] == y[i]).astype(int)
+            first_correct_pred_idx = np.argmax(correct_classifications)
+            
+            t2 = time.time()
+
+            # Find first acceptable neighbor
+            acceptable_mask_for_CD = acceptable_idx[cd_idx]
+            acceptable_positions_in_cd = np.where(acceptable_mask_for_CD)[0]
+            if len(acceptable_positions_in_cd) > 0:
+                y_max_idx = None
+                for idx_in_sorted in sorted_nearest_idx_in_cd:
+                    if idx_in_sorted in acceptable_positions_in_cd:
+                        y_max_idx = cd_idx[idx_in_sorted]
+                        break
+                if y_max_idx is None:
+                    y_max_idx = cd_idx[sorted_nearest_idx_in_cd[0]]
+            else:
+                if len(cd_idx) > 0:
+                    y_max_idx = cd_idx[np.random.randint(0, len(cd_idx))]
+                else:
+                    y_max_idx = 0
+            t3 = time.time()
+
+            # Record classification result
+            if y[y_max_idx] == y[i]:
+                record_correct[i] += 1
+            else:
+                record_false[i] += 1
+                cd_idx.append(i)
+            t4 = time.time()
+
+            # Update class counts
+            class_counts[y[i]] += 1
+            t5 = time.time()
+
+            # --- Confidence interval computations (optimized) ---
+            dropped_idxs = []
+
+            # Only consider relevant subset once
+            upto_idx = np.searchsorted(sorted_nearest_idx_in_cd, first_correct_pred_idx, side='right')
+            subset_cd_idx = np.array(cd_idx)[sorted_nearest_idx_in_cd[:upto_idx + 1]]
+            subset_labels = y[subset_cd_idx]
+            same_class_mask = subset_labels == y[i]
+
+            # Fast vectorized updates for correct/false counts
+            record_correct[subset_cd_idx[same_class_mask]] += 1
+            wrong_idx = subset_cd_idx[~same_class_mask]
+            record_false[wrong_idx] += 1
+
+            if len(wrong_idx) > 0:
+                correct_counts = record_correct[wrong_idx]
+                false_counts = record_false[wrong_idx]
+                total_obs = correct_counts + false_counts
+
+                # Avoid divide-by-zero
+                valid_mask = total_obs > 0
+                wrong_idx = wrong_idx[valid_mask]
+                total_obs = total_obs[valid_mask]
+                correct_counts = correct_counts[valid_mask]
+                false_counts = false_counts[valid_mask]
+
+                classification_accuracy = correct_counts / total_obs
+                sqrt_total = np.sqrt(total_obs)
+                acc_std = np.sqrt(total_obs * classification_accuracy * (1 - classification_accuracy))
+                acc_low = classification_accuracy - Z * (acc_std / sqrt_total)
+                acc_high = classification_accuracy + Z * (acc_std / sqrt_total)
+
+                # Vectorized class stats
+                class_labels = y[wrong_idx]
+                class_count_array = np.array([class_counts.get(lbl, 0) for lbl in class_labels])
+                total_count = float(i)
+
+                class_freq = np.divide(class_count_array, total_count, out=np.zeros_like(class_count_array, dtype=float), where=total_count > 0)
+                class_std = np.sqrt(class_freq * (1 - class_freq) / total_count) if total_count > 0 else np.zeros_like(class_freq)
+                class_low = class_freq - Z * class_std
+                class_high = class_freq + Z * class_std
+
+                # Vectorized IB3 decision
+                mask_acceptable = acc_low > class_high
+                mask_drop = (acc_high < class_low) & (total_obs >= 4)
+
+                acceptable_idx[wrong_idx[mask_acceptable]] = 1
+                dropped_idxs.extend(np.where(mask_drop)[0])
+            t6 = time.time()
+
+            # Remove noisy instances
+            for drop_idx in dropped_idxs:
+                if drop_idx in cd_idx:
+                    cd_idx.remove(drop_idx)
+            t7 = time.time()
+
+            # Print timing every 100th iteration
+            if timings and i % 100 == 0 or i == n - 1:
+                print(f"\nIteration {i}/{n-1}")
+                print(f"  Distance calc:   {t1 - t0:.5f} s")
+                print(f"  Classification:  {t2 - t1:.5f} s")
+                print(f"  Acceptable check:{t3 - t2:.5f} s")
+                print(f"  Record update:   {t4 - t3:.5f} s")
+                print(f"  Class counting:  {t5 - t4:.5f} s")
+                print(f"  CI computations: {t6 - t5:.5f} s")
+                print(f"  Noise removal:   {t7 - t6:.5f} s")
+                print(f"  Total iteration: {t7 - iter_start:.5f} s\n")
+
+        total_end = time.time()
+        print(f"\nIB3 instance reduction complete. Total time: {total_end - total_start:.2f}s")
+
+        return np_train_matrix[cd_idx, :]
+    
+
+    def get_concept_description_size(self, matrix = None):
+        if matrix is not None:
+            storage_mb = matrix.nbytes / (1024 ** 2)
+            print(f"\nStorage used by before: {storage_mb:.2f} MB")
+            return matrix.nbytes
+            
+        storage_mb = self.X.nbytes / (1024 ** 2)
+        print(f"Storage used by X: {storage_mb:.2f} MB")
+        return self.X.nbytes
+
+
+    def fit(self, train_matrix: pd.DataFrame, distance_measure = "euclidean", instance_red: str = None):
+        np_train_matrix_b = train_matrix.reset_index(drop=True).to_numpy()
+        
+        if instance_red == "IBL3":
+            np_train_matrix = self.ib3_instance_reduction(np_train_matrix_b)
+        elif instance_red == "IBL3_verbose":
+            np_train_matrix = self.ib3_instance_reduction(np_train_matrix_b, timings=True)
+        elif instance_red == "CNN":
+            print("CNN instance reduction...")
+            np_train_matrix = instance_reduction.condensed_nearest_neighbor(train_matrix, distance_metric=distance_measure)
+        elif instance_red == "MCNN":
+            np_train_matrix = instance_reduction.mcnn(train_matrix, distance_metric=distance_measure)
+        elif instance_red == "enn":
+            np_train_matrix= instance_reduction.edited_nearest_neighbor(train_matrix, distance_metric=distance_measure)
+        elif instance_red == "RENN":
+            np_train_matrix = instance_reduction.renn(train_matrix, distance_metric=distance_measure)
+        else:
+            np_train_matrix = np_train_matrix_b
+        
         self.X = np_train_matrix[:, :-1]
         self.y = np_train_matrix[:, -1]
+
+        print("Instances reduced from", np_train_matrix_b.shape[0], "to", np_train_matrix.shape[0])
+
+        self.get_concept_description_size()
+
+        self.get_concept_description_size(np_train_matrix)
 
     def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
         self.k = int(k)
@@ -51,6 +232,9 @@ class IBL:
 
             x_instance = self.X_test[i, :]
             y_instance = self.y_test[i]
+            # print(self.X.get_filled())
+            # print(self.X.get_filled()[0])
+            # print(self.X.get_filled().shape)
 
             dist_start = time.time()
             if self.feature_weights is not None:
@@ -123,55 +307,6 @@ class IBL:
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
 
-        # for i, instance in test_matrix.iterrows():
-        #     x_instance, y_instance = instance.iloc[:-1], instance.iloc[-1]
-        #     step_start = time.time()
-
-        #     # Distance calculation
-        #     dist_start = time.time()
-        #     if self.metric == "euclidean":
-        #         distances = euclidean_distance(X, x_instance)
-        #     elif self.metric == "cosine":
-        #         distances = cosine_distance(X, x_instance)
-        #     elif self.metric == "heom":
-        #         distances = heom_distance(X, x_instance, types)
-        #     else:
-        #         raise ValueError(f"Unknown metric: {self.metric}")
-        #     dist_end = time.time()
-
-        #     # Sort by distance and get k nearest
-        #     sort_start = time.time()
-        #     k_nearest = distances.nsmallest(self.k, "Distance")
-        #     sort_end = time.time()
-
-        #     # Voting
-        #     vote_start = time.time()
-        #     neighbor_labels = y.loc[k_nearest["Index"]].tolist()
-        #     # print(X.loc[k_nearest["Index"]], y.loc[k_nearest["Index"]])
-
-        #     if self.vote == "modified_plurality":
-        #         pred = self._vote_modified_plurality(neighbor_labels)
-        #     elif self.vote == "borda":
-        #         pred = self._vote_borda(neighbor_labels)
-        #     else:
-        #         # basic majority
-        #         pred = pd.Series(neighbor_labels).mode().iloc[0]
-        #     vote_end = time.time()
-
-        #     predictions.append(pred)
-
-        #     # Retention policy
-        #     retention_start = time.time()
-
-        #     retention_polcies(retention_policy, self.train_matrix, instance, k_nearest, pred, y)
-
-        #     retention_end = time.time()
-
-        #     step_end = time.time()
-        #     print(f"Instance {i}/{len(test_matrix)}: dist={dist_end-dist_start:.4f}s, sort={sort_end-sort_start:.4f}s, vote={vote_end-vote_start:.4f}s, retention={retention_end-retention_start:.4f}s, total={step_end-step_start:.4f}s")
-
-        # total_end = time.time()
-        # print(f"Total time for all instances: {total_end-total_start:.2f}s")
         print("Final training set size:", self.X.get_filled().shape)
         return predictions
 
@@ -255,12 +390,12 @@ class IBL:
 if __name__ == "__main__":
     parser = Parser(
         base_path="datasetsCBR/datasetsCBR",
-        dataset_name="adult",
+        dataset_name="pen-based",
         normalization_strategy=NormalizationStrategy.MINMAX_SCALING,
         encoding_strategy=EncodingStrategy.ONE_HOT_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.MEDIAN,
         missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE,
-        # faster_parser=True,
+        faster_parser=True,
     )
 
     train_matrix, test_matrix = parser.get_split(0)
@@ -269,36 +404,7 @@ if __name__ == "__main__":
     # Testing standard IBL
     print("=== Testing Standard IBL ===")
     ibl = IBL()
-    ibl.fit(train_matrix)
+    instance_red = [None, "IBL3", "IBL3_verbose", "CNN", "MCNN", "enn", "RENN"]
+    ibl.fit(train_matrix, instance_red="RENN")
     preds = ibl.run(test_matrix, k=5, metric="heom", vote="modified_plurality",
                     retention_policy=RetentionPolicy.NEVER_RETAIN, types=types)
-
-    # print(preds)
-    # print(test_matrix.iloc[:, -1])
-
-    # # Helpful basic metrics
-    # acc = accuracy_score(test_matrix.iloc[:, -1], preds)
-    # prec = precision_score(
-    #     test_matrix.iloc[:, -1], preds, average='weighted', zero_division=0)
-    # rec = recall_score(
-    #     test_matrix.iloc[:, -1], preds, average='weighted', zero_division=0)
-    # f1 = f1_score(test_matrix.iloc[:, -1], preds,
-    #               average='weighted', zero_division=0)
-
-    # # Display results
-    # print("Performance Metrics:")
-    # print(f"Accuracy:  {acc:.4f}")
-    # print(f"Precision: {prec:.4f}")
-    # print(f"Recall:    {rec:.4f}")
-    # print(f"F1-score:  {f1:.4f}")
-
-    # # Confusion matrix + detailed report
-    # print("\nConfusion Matrix:")
-    # print(confusion_matrix(test_matrix.iloc[:, -1], preds))
-
-    # print("\nClassification Report:")
-    # print(classification_report(
-    #     test_matrix.iloc[:, -1], preds, zero_division=0))
-
-    # print("Predictions:", preds)
-    # print("Ground truth:", list(test_matrix.iloc[:, -1]))

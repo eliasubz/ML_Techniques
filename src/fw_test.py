@@ -1,25 +1,20 @@
+import argparse
 import json
 from pathlib import Path
+import sys
 import time
 import numpy as np
 import pandas as pd
 from IBL import IBL
 from Parser import Parser
+from argument_parser import parse_arguments
 from processing_types import EncodingStrategy, FeatureWeightingMethod, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy, RetentionPolicy
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 
-BASE_PATH = "datasetsCBR/datasetsCBR/"
-DATASET_NAME = "pen-based"
-NORMALZIATION_STRATEGY = NormalizationStrategy.MEAN_NORMALIZE
-ENCODING_STRATEGY = EncodingStrategy.ONE_HOT_ENCODE
-MISSING_VALUES_NUMERIC_STRATEGY = MissingValuesNumericStrategy.MEDIAN
-MISSING_VALUES_CATEGORICAL_STRATEGY = MissingValuesCategoricalStrategy.MODE
-NUM_SPLITS = 10
-K = 5
-DISTANCE_METRIC = "cosine"
-VOTING_STRATEGY = "borda"
-RETENTION_POLICY = RetentionPolicy.DIFFERENT_CLASS_RETENTION
 
+# Valid options for validation
+NUM_SPLITS = 10
+BASE_PATH = "datasetsCBR/datasetsCBR/"
 RESULTS_PATH = "results/"
 
 
@@ -33,19 +28,23 @@ def run_suite(
     dataset_name: str,
     k: int,
     metric: str,
-    retention: str,
+    retention: RetentionPolicy,
     vote: str,
     feature_weighting_method: FeatureWeightingMethod,
+    normalization_strategy: NormalizationStrategy,
+    encoding_strategy: EncodingStrategy,
+    missing_values_numeric_strategy: MissingValuesNumericStrategy,
+    missing_values_categorical_strategy: MissingValuesCategoricalStrategy,
     out_csv: Path
 ):
 
     parser = Parser(
         base_path=BASE_PATH,
         dataset_name=dataset_name,
-        normalization_strategy=NORMALZIATION_STRATEGY,
-        encoding_strategy=ENCODING_STRATEGY,
-        missing_values_numeric_strategy=MISSING_VALUES_NUMERIC_STRATEGY,
-        missing_values_categorical_strategy=MISSING_VALUES_CATEGORICAL_STRATEGY,
+        normalization_strategy=normalization_strategy,
+        encoding_strategy=encoding_strategy,
+        missing_values_numeric_strategy=missing_values_numeric_strategy,
+        missing_values_categorical_strategy=missing_values_categorical_strategy,
         num_splits=NUM_SPLITS,
     )
     types = parser.get_types()
@@ -68,12 +67,14 @@ def run_suite(
         t0 = time.perf_counter()
         ibl.fit(train_matrix)
         t1 = time.perf_counter()
+        retention_policy_str = retention.value if isinstance(
+            retention, RetentionPolicy) else retention
         preds = ibl.fw_KIBLAlgorithm(
             test_matrix,
             k=k,
             metric=metric,
             vote=vote,
-            retention_policy=retention,
+            retention_policy=retention_policy_str,
             types=types,
             feature_weighting_method=feature_weighting_method,
             post_encoding_types=post_encoding_types
@@ -101,12 +102,11 @@ def run_suite(
         cm_fold = confusion_matrix(y_true, y_pred, labels=labels).astype(int)
 
         row = {
-            "dataset": dataset_name,
             "fw_method": feature_weighting_method.value,
             "metric": metric,
             "k": k,
             "vote": vote,
-            "retention": retention,
+            "retention": retention.value if isinstance(retention, RetentionPolicy) else retention,
 
             "fold_id": fold_id,
             "num_folds": NUM_SPLITS,
@@ -140,13 +140,31 @@ def run_suite(
 
 
 if __name__ == "__main__":
+    try:
+        args = parse_arguments()
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
     for method in FeatureWeightingMethod:
-        out_csv = Path(RESULTS_PATH + f"{DATASET_NAME}_fw_{method.value}.csv")
+        out_csv = Path(
+            RESULTS_PATH + f"{args['dataset_name']}_fw_{method.value}.csv")
         print(
-            f"dataset={DATASET_NAME}, metric={DISTANCE_METRIC}, k={K}, vote={VOTING_STRATEGY}, retention={RETENTION_POLICY}, fw_method={method.value}")
-        run_suite(DATASET_NAME, k=K, metric=DISTANCE_METRIC,
-                  retention=RETENTION_POLICY, vote=VOTING_STRATEGY, feature_weighting_method=method, out_csv=out_csv)
+            f"dataset={args['dataset_name']}, metric={args['metric']}, k={args['k']}, "
+            f"vote={args['vote']}, retention={args['retention_policy'].value}, fw_method={method.value}")
+        run_suite(
+            dataset_name=args['dataset_name'],
+            k=args['k'],
+            metric=args['metric'],
+            retention=args['retention_policy'],
+            vote=args['vote'],
+            feature_weighting_method=method,
+            normalization_strategy=args['normalization_strategy'],
+            encoding_strategy=args['encoding_strategy'],
+            missing_values_numeric_strategy=args['missing_values_numeric_strategy'],
+            missing_values_categorical_strategy=args['missing_values_categorical_strategy'],
+            out_csv=out_csv
+        )
 
     # print("\n=== Parsing/Preprocessing Data ... ===")
 
