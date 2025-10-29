@@ -7,7 +7,7 @@ from Parser import Parser
 from sklearn.metrics import accuracy_score, precision_recall_fscore_support, confusion_matrix
 
 from argument_parser import parse_arguments
-from csv_writers import create_fw_k_ibl_csv_row, create_k_ibl_csv_row
+from csv_writers import create_fw_k_ibl_csv_row, create_k_ibl_csv_row, create_ir_ibl_csv_row
 from model_types import Models
 
 
@@ -52,10 +52,43 @@ if __name__ == "__main__":
 
         # Fit + predict
         t0 = time.perf_counter()
-        ibl.fit(train_matrix)
+        
+        # --- Instance reduction strategy selection ---
+        if args.instance_reduction_strategy is None:
+            print("No instance reduction selected.")
+            ibl.fit(train_matrix)
+
+        elif args.instance_reduction_strategy == "IBL3":
+            print("Applying IBL3 instance reduction...")
+            ibl.fit(train_matrix, instance_red="IBL3")
+
+        elif args.instance_reduction_strategy == "IBL3_verbose":
+            print("Applying IBL3 (verbose) instance reduction...")
+            ibl.fit(train_matrix, instance_red="IBL3_verbose")
+
+        elif args.instance_reduction_strategy == "CNN":
+            print("Applying Condensed Nearest Neighbor (CNN) instance reduction...")
+            ibl.fit(train_matrix, instance_red="CNN")
+
+        elif args.instance_reduction_strategy == "MCNN":
+            print("Applying Modified Condensed Nearest Neighbor (MCNN) instance reduction...")
+            ibl.fit(train_matrix, instance_red="MCNN")
+
+        elif args.instance_reduction_strategy.lower() == "enn":
+            print("Applying Edited Nearest Neighbor (ENN) instance reduction...")
+            ibl.fit(train_matrix, instance_red="enn")
+
+        elif args.instance_reduction_strategy.upper() == "RENN":
+            print("Applying Repeated Edited Nearest Neighbor (RENN) instance reduction...")
+            ibl.fit(train_matrix, instance_red="RENN")
+
+        else:
+            raise ValueError(f"Unknown instance reduction strategy: {args.instance_reduction_strategy}")
+
+
         t1 = time.perf_counter()
 
-        if args.model is Models.K_IBL:
+        if args.model is Models.K_IBL or args.model is Models.IR_K_IBL:
             preds = ibl.run(
                 test_matrix,
                 k=args.k,
@@ -75,9 +108,6 @@ if __name__ == "__main__":
                 feature_weighting_method=args.feature_weighting_strategy,
                 post_encoding_types=post_encoding_types
             )
-        elif args.model is Models.IR_K_IBL:
-            raise NotImplementedError(
-                "IR-K-IBL is not implemented in this script yet.")
         elif args.model is Models.SVM:
             raise NotImplementedError(
                 "SVM is not implemented in this script yet.")
@@ -127,6 +157,34 @@ if __name__ == "__main__":
                 f1_weighted=fW,
                 confusion_matrix=cm_fold,
                 labels=labels,
+            )
+        elif args.model is Models.IR_K_IBL:
+            row = create_ir_ibl_csv_row(
+                metric=args.distance_metric,
+                k=args.k,
+                vote=args.voting_strategy,
+                retention=args.retention_policy.value,
+                fold_id=fold_id,
+                num_folds=NUM_SPLITS,
+                n_train=train_matrix.shape[0],
+                n_test=test_matrix.shape[0],
+                fit_time=fit_time,
+                predict_time=predict_time,
+                total_time=total_time,
+                accuracy=acc,
+                precision_macro=pM,
+                recall_macro=rM,
+                f1_macro=fM,
+                precision_weighted=pW,
+                recall_weighted=rW,
+                f1_weighted=fW,
+                confusion_matrix=cm_fold,
+                labels=labels,
+                instance_reduction_method=args.instance_reduction_strategy,
+                memory_before_ir=ibl.cp_before_ir,
+                memory_after_ir=ibl.cp_after_ir,
+                memory_after_training=ibl.cp_after_training,
+                percentage_memory_reduction=(ibl.cp_before_ir - ibl.cp_after_ir) / ibl.cp_before_ir * 100
             )
         elif args.model is Models.K_IBL:
             row = create_k_ibl_csv_row(

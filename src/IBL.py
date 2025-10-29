@@ -22,6 +22,9 @@ class IBL:
         - types: (list of 'numeric'/'categorical') when using HEOM.
         """
         self.feature_weights = None
+        self.cp_before_ir = 0
+        self.cp_after_ir = 0
+        self.cp_after_training = 0
 
     def ib3_instance_reduction(self, np_train_matrix: np.ndarray, timings: bool = False) -> np.ndarray:
         """
@@ -171,12 +174,12 @@ class IBL:
     def get_concept_description_size(self, matrix = None):
         if matrix is not None:
             storage_mb = matrix.nbytes / (1024 ** 2)
-            print(f"\nStorage used by before: {storage_mb:.2f} MB")
-            return matrix.nbytes
+            print(f"\nStorage used with specified matrix: {storage_mb:.2f} MB")
+            return storage_mb
             
         storage_mb = self.X.nbytes / (1024 ** 2)
         print(f"Storage used by X: {storage_mb:.2f} MB")
-        return self.X.nbytes
+        return storage_mb
 
 
     def fit(self, train_matrix: pd.DataFrame, distance_measure = "euclidean", instance_red: str = None):
@@ -204,8 +207,9 @@ class IBL:
         print("Instances reduced from", np_train_matrix_b.shape[0], "to", np_train_matrix.shape[0])
 
         if instance_red is not None:
-            self.get_concept_description_size()
-            self.get_concept_description_size(np_train_matrix)
+            self.cp_before_ir =  self.get_concept_description_size(np_train_matrix_b)
+            self.cp_after_ir =  self.get_concept_description_size()
+        
 
     def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
         self.k = int(k)
@@ -306,6 +310,8 @@ class IBL:
 
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
+
+        self.cp_after_training = self.get_concept_description_size(self.X.get_filled())
 
         print("Final training set size:", self.X.get_filled().shape)
         return predictions
