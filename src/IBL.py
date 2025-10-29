@@ -9,7 +9,7 @@ from feature_weighing import compute_feature_weights
 from preallocated_matrix import PreallocatedMatrix
 from processing_types import FeatureWeightingMethod, RetentionPolicy, EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
 from retention_policies import retention_policies
-import instance_reduction
+import Instance_Reduction
 
 
 
