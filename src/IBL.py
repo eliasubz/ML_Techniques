@@ -203,9 +203,9 @@ class IBL:
 
         print("Instances reduced from", np_train_matrix_b.shape[0], "to", np_train_matrix.shape[0])
 
-        self.get_concept_description_size()
-
-        self.get_concept_description_size(np_train_matrix)
+        if instance_red is not None:
+            self.get_concept_description_size()
+            self.get_concept_description_size(np_train_matrix)
 
     def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
         self.k = int(k)
