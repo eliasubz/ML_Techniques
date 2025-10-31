@@ -36,7 +36,7 @@ def condensed_nearest_neighbor(D_matrix: pd.DataFrame, distance_metric="euclidea
         np.random.shuffle(D_idx)
 
         for i in D_idx:
-            print(X.size)
+            # print(X.size)
             x = X[i]
 
             # 1-NN classification using current E
@@ -51,7 +51,7 @@ def condensed_nearest_neighbor(D_matrix: pd.DataFrame, distance_metric="euclidea
                 raise ValueError(f"Unknown metric: {distance_metric}")
 
 
-            print(distances)
+            # print(distances)
             nn_index = E_idx[np.argmin(distances)]
             y_pred = y[nn_index]
 
@@ -63,7 +63,7 @@ def condensed_nearest_neighbor(D_matrix: pd.DataFrame, distance_metric="euclidea
                 count += 1
 
         if count == 0:
-            print("No misclassifications → done.")
+            # print("No misclassifications → done.")
             break
 
         # Prepare for next pass
@@ -74,7 +74,7 @@ def condensed_nearest_neighbor(D_matrix: pd.DataFrame, distance_metric="euclidea
     print("Instances after: ", len(E_idx))
 
     # Return the reduced dataset
-    return X[E_idx], y[E_idx], E_idx
+    return D_matrix.iloc[E_idx,:].to_numpy()
 
 
 def mcnn(D_matrix: pd.DataFrame, distance_metric="euclidean", max_passes=10):
@@ -109,7 +109,7 @@ def mcnn(D_matrix: pd.DataFrame, distance_metric="euclidean", max_passes=10):
     print(f"Initial prototypes: {len(E_idx)} ({E_idx})")
 
     for pass_num in range(1, max_passes + 1):
-        print(f"\n=== Pass {pass_num} ===")
+        # print(f"\n=== Pass {pass_num} ===")
         np.random.shuffle(D_idx)
         misclassified = []
 
@@ -132,7 +132,7 @@ def mcnn(D_matrix: pd.DataFrame, distance_metric="euclidean", max_passes=10):
                 E_idx.append(i)
                 misclassified.append(i)
 
-        print(f"Added {len(misclassified)} new prototypes.")
+        # print(f"Added {len(misclassified)} new prototypes.")
 
         # If no misclassifications, stop early
         if len(misclassified) == 0:
@@ -146,17 +146,18 @@ def mcnn(D_matrix: pd.DataFrame, distance_metric="euclidean", max_passes=10):
     print(f"Instances before: {n}")
     print(f"Instances after: {len(E_idx)} ({round(len(E_idx)/n*100, 2)}% retained)")
 
-    return X[E_idx], y[E_idx], E_idx
+    return D_matrix.iloc[E_idx,:].to_numpy()
 
 # Edited Nearest Neighbor
 
-def edited_nearest_neighbor(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean"):
+def edited_nearest_neighbor(D_matrix, k=3, distance_metric="euclidean"):
     X = D_matrix.iloc[:, :-1].to_numpy()
     y = D_matrix.iloc[:, -1].to_numpy()
-    return enn(X,y=y, k=k, distance_metric=distance_metric)
+    X, y, _ = enn(X,y=y, k=k, distance_metric=distance_metric)
+    return np.concatenate([X, y.reshape(-1, 1)], axis=1)
 
 
-def enn(X ,y, k=3, distance_metric='euclidean'):
+def enn(X ,y, k=7, distance_metric='euclidean'):
 
     """
     Edited Nearest Neighbor (ENN)
@@ -207,6 +208,7 @@ def enn(X ,y, k=3, distance_metric='euclidean'):
 
     return X[kept_indices], y[kept_indices], kept_indices
 
+
 def renn(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean", max_iter=10):
     """
     Repeated Edited Nearest Neighbor (RENN)
@@ -219,7 +221,7 @@ def renn(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean", max_iter=10):
     while iteration <= max_iter:
         X_new, y_new, kept_indices = enn(X,y=y, k=k, distance_metric=distance_metric)
         removed = len(X) - len(X_new)
-        print(f"RENN Iteration {iteration}: removed {removed} instances")
+        # print(f"RENN Iteration {iteration}: removed {removed} instances")
 
         if removed == 0:
             print("No more instances removed → stopping.")
@@ -231,7 +233,9 @@ def renn(D_matrix: pd.DataFrame, k=3, distance_metric="euclidean", max_iter=10):
     print(f"Instances before: {len(D_matrix)}")
     print(f"Instances after RENN: {len(X)} ({round(len(X)/len(D_matrix)*100,2)}% retained)")
 
-    return X, y, kept_indices
+
+    
+    return np.concatenate([X, y.reshape(-1, 1)], axis=1)
 
 
 
@@ -253,9 +257,12 @@ if __name__ == "__main__":
     print("time: ", then - now)
 
     train_matrix, test_matrix = parser.get_split(0)
-
+    print("Cnn")
     condensed_nearest_neighbor(train_matrix, distance_metric="euclidean")
+    condensed_nearest_neighbor(train_matrix, distance_metric="cosine")
     mcnn(train_matrix, distance_metric="euclidean")
+    mcnn(train_matrix, distance_metric="cosine")
     edited_nearest_neighbor(train_matrix, distance_metric="cosine")
-    renn(train_matrix, distance_metric="cosine")
+    edited_nearest_neighbor(train_matrix, distance_metric="euclidean")
+    renn(D_matrix=train_matrix, distance_metric="cosine")
     renn(train_matrix, distance_metric="euclidean")

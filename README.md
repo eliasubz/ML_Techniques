@@ -101,6 +101,11 @@ python3 src/main.py \
   --voting-strategy borda \
   --retention-strategy different_class_retention
 ```
+**Example 2.1 (windows): Running Feature-Weighted K-IBL with custom preprocessing:**
+
+```bash
+python3 src/main.py  --model fw_k_ibl  --dataset pen-based  --feature-weighting-strategy relieff  --normalization mean_normalize  --encoding one_hot_encode  --missing-numeric-strategy median  --missing-categorical-strategy mode  --k 5  --distance-metric cosine  --voting-strategy borda  --retention-strategy different_class_retention
+```
 
 **Example 3: Running SVM:**
 
@@ -111,6 +116,11 @@ python3 src/main.py \
   --svm-kernel rbf \
   --normalization mean_normalize \
   --encoding label_encode
+```
+**Example 4 (windows): Running Feature-Weighted K-IBL with custom preprocessing:**
+
+```bash
+python3 src/main.py  --model ir_k_ibl  --dataset pen-based  --instance-reduction-strategy CNN  --normalization mean_normalize  --encoding one_hot_encode  --missing-numeric-strategy median  --missing-categorical-strategy mode  --k 5  --distance-metric cosine  --voting-strategy borda  --retention-strategy different_class_retention
 ```
 
 #### Available Options

@@ -29,6 +29,7 @@ class ParsedArguments:
     retention_policy: RetentionPolicy
 
 
+
 def parse_arguments() -> ParsedArguments:
     """Parse and validate command-line arguments."""
     parser = argparse.ArgumentParser(
@@ -68,7 +69,7 @@ def parse_arguments() -> ParsedArguments:
     parser.add_argument(
         "--instance-reduction-strategy",
         type=str,
-        choices=['ibl3'],
+        choices=["IBL3", "IBL3_verbose", "CNN", "MCNN", "enn", "RENN"],
         help="Instance Reduction type"
     )
 
