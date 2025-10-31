@@ -28,6 +28,9 @@ class ParsedArguments:
     missing_values_categorical_strategy: MissingValuesCategoricalStrategy
     retention_policy: RetentionPolicy
     C: float
+    gamma: float
+    Degree: int
+
 
 
 
@@ -71,6 +74,20 @@ def parse_arguments() -> ParsedArguments:
         "--C",
         type=float,
         choices=[0.01, 0.1, 1, 10],
+        help="SVM kernel type"
+    )
+
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        choices=[0.001, 0.01, 0.1],
+        help="SVM kernel type"
+    )
+
+    parser.add_argument(
+        "--Degree",
+        type=int,
+        choices=[2, 3],
         help="SVM kernel type"
     )
 
@@ -153,6 +170,8 @@ def parse_arguments() -> ParsedArguments:
         instance_reduction_strategy=args.instance_reduction_strategy,
         svm_kernel=args.svm_kernel,
         C=args.C,
+        gamma=args.gamma,
+        Degree=args.Degree,
         normalization_strategy=args.normalization,
         encoding_strategy=args.encoding,
         missing_values_numeric_strategy=args.missing_numeric_strategy,

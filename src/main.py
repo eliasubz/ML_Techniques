@@ -93,7 +93,7 @@ if __name__ == "__main__":
             np_train_matrix = train_matrix.reset_index(drop=True).to_numpy()
             X_train, y_train = np_train_matrix[:, :-1], np_train_matrix[:, -1]
 
-            svm = SVC(kernel=args.svm_kernel, C=args.C, gamma='scale', degree=2)
+            svm = SVC(kernel=args.svm_kernel, C=args.C, gamma=args.gamma, degree=args.Degree)
             svm.fit(X_train, y_train)
 
         t1 = time.perf_counter()
@@ -225,6 +225,8 @@ if __name__ == "__main__":
             row = create_svm_csv_row(
                 kernel=args.svm_kernel,
                 C=args.C,
+                Degree=args.Degree,
+                gamma=args.gamma,
                 fold_id=fold_id,
                 num_folds=NUM_SPLITS,
                 n_train=train_matrix.shape[0],

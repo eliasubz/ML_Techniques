@@ -226,6 +226,8 @@ def create_k_ibl_csv_row(
 def create_svm_csv_row(
     kernel: str,
     C: float,
+    gamma: float,
+    Degree: int,
     fold_id: int,
     num_folds: int,
     n_train: int,
@@ -244,12 +246,14 @@ def create_svm_csv_row(
     labels: np.ndarray,
 ) -> dict:
     """Create a CSV row dictionary for k-IBL results (without fw_method column)."""
-    config_id = f"svm-{kernel}-c{C}"
+    config_id = f"svm-{kernel}-c{C}-gamma{gamma}-degree{Degree}"
 
     return {
         "config_id": config_id,
         "kernel": kernel,
         "c": C,
+        "gamma": gamma,
+        "degree": Degree,
 
         "fold_id": fold_id,
         "num_folds": num_folds,
