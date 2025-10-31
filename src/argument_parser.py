@@ -27,6 +27,7 @@ class ParsedArguments:
     missing_values_numeric_strategy: MissingValuesNumericStrategy
     missing_values_categorical_strategy: MissingValuesCategoricalStrategy
     retention_policy: RetentionPolicy
+    C: float
 
 
 
@@ -63,6 +64,13 @@ def parse_arguments() -> ParsedArguments:
         "--svm-kernel",
         type=str,
         choices=['rbf', 'poly'],
+        help="SVM kernel type"
+    )
+
+    parser.add_argument(
+        "--C",
+        type=float,
+        choices=[0.01, 0.1, 1, 10],
         help="SVM kernel type"
     )
 
@@ -144,6 +152,7 @@ def parse_arguments() -> ParsedArguments:
         feature_weighting_strategy=args.feature_weighting_strategy,
         instance_reduction_strategy=args.instance_reduction_strategy,
         svm_kernel=args.svm_kernel,
+        C=args.C,
         normalization_strategy=args.normalization,
         encoding_strategy=args.encoding,
         missing_values_numeric_strategy=args.missing_numeric_strategy,

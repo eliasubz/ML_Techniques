@@ -222,3 +222,52 @@ def create_k_ibl_csv_row(
 
         "confusion_matrix_json": cm_to_json(confusion_matrix, labels=labels.tolist()),
     }
+
+def create_svm_csv_row(
+    kernel: str,
+    C: float,
+    fold_id: int,
+    num_folds: int,
+    n_train: int,
+    n_test: int,
+    fit_time: float,
+    predict_time: float,
+    total_time: float,
+    accuracy: float,
+    precision_macro: float,
+    recall_macro: float,
+    f1_macro: float,
+    precision_weighted: float,
+    recall_weighted: float,
+    f1_weighted: float,
+    confusion_matrix: np.ndarray,
+    labels: np.ndarray,
+) -> dict:
+    """Create a CSV row dictionary for k-IBL results (without fw_method column)."""
+    config_id = f"svm-{kernel}-c{C}"
+
+    return {
+        "config_id": config_id,
+        "kernel": kernel,
+        "c": C,
+
+        "fold_id": fold_id,
+        "num_folds": num_folds,
+        "n_train": n_train,
+        "n_test": n_test,
+
+        "fit_time_s": fit_time,
+        "predict_time_s": predict_time,
+        "total_time_s": total_time,
+
+        "accuracy": accuracy,
+        "precision_macro": precision_macro,
+        "recall_macro":    recall_macro,
+        "f1_macro":        f1_macro,
+
+        "precision_weighted": precision_weighted,
+        "recall_weighted":    recall_weighted,
+        "f1_weighted":        f1_weighted,
+
+        "confusion_matrix_json": cm_to_json(confusion_matrix, labels=labels.tolist()),
+    }
