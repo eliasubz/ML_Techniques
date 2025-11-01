@@ -122,6 +122,10 @@ python3 src/main.py \
 ```bash
 python3 src/main.py  --model ir_k_ibl  --dataset pen-based  --instance-reduction-strategy CNN  --normalization mean_normalize  --encoding one_hot_encode  --missing-numeric-strategy median  --missing-categorical-strategy mode  --k 5  --distance-metric cosine  --voting-strategy borda  --retention-strategy different_class_retention
 ```
+**Example 5 (windows): Running Statistical Analysis (compatible with any number of files, and all types of configs):**
+```bash
+python3 src/statistical_analysis.py filename_1 filename_2 filename_k --metric f1_macro --export-csv output_filename --savefig filename.png
+```
 
 #### Available Options
 
