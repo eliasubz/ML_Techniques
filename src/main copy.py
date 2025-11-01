@@ -45,6 +45,7 @@ def run_experiment_portable(
     gamma: Any,
     Degree: Any,
     retention_policy: Enum,  # Assuming this is an Enum type
+
     instance_reduction_strategy: Optional[str] = None,
     feature_weighting_strategy: Optional[str] = None,
     BASE_PATH = "datasetsCBR/datasetsCBR/"
@@ -88,11 +89,12 @@ def run_experiment_portable(
 
     for fold_id, (train_matrix, test_matrix) in enumerate(splits):
 
+        # --- Fit Time (Instance Reduction/Feature Weighting) ---
+        t0 = time.perf_counter()
+
         if model is not Models.SVM:
             ibl = IBL()
 
-            # --- Fit Time (Instance Reduction/Feature Weighting) ---
-            t0 = time.perf_counter()
 
             # Apply Instance Reduction (IR) if specified.
             if instance_reduction_strategy is None:
@@ -101,23 +103,33 @@ def run_experiment_portable(
 
             # The original code's `if/elif` structure for IR is simplified using a direct call.
             # This assumes your IBL.fit handles the direct string strategy names.
-            elif instance_reduction_strategy in [
-                "IBL3",
-                "IBL3_verbose",
-                "CNN",
-                "MCNN",
-                "enn",
-                "RENN",
-            ]:
-                strategy = instance_reduction_strategy
-                if strategy == "IBL3_verbose":
-                    print(f"Applying IBL3 (verbose) instance reduction...")
-                elif strategy.lower() == "enn" or strategy.upper() == "RENN":
-                    print(f"Applying {strategy.upper()} instance reduction...")
-                else:
-                    print(f"Applying {strategy} instance reduction...")
 
-                ibl.fit(train_matrix, instance_red=strategy)
+            elif instance_reduction_strategy == "IBL3":
+                print("Applying IBL3 instance reduction...")
+                ibl.fit(train_matrix, instance_red="IBL3")
+
+            elif instance_reduction_strategy == "IBL3_verbose":
+                print("Applying IBL3 (verbose) instance reduction...")
+                ibl.fit(train_matrix, instance_red="IBL3_verbose")
+
+            elif instance_reduction_strategy == "CNN":
+                print("Applying Condensed Nearest Neighbor (CNN) instance reduction...")
+                ibl.fit(train_matrix, instance_red="CNN")
+
+            elif instance_reduction_strategy == "MCNN":
+                print("Applying Modified Condensed Nearest Neighbor (MCNN) instance reduction...")
+                ibl.fit(train_matrix, instance_red="MCNN")
+
+            elif instance_reduction_strategy.lower() == "enn":
+                print("Applying Edited Nearest Neighbor (ENN) instance reduction...")
+                ibl.fit(train_matrix, instance_red="enn")
+
+            elif instance_reduction_strategy.upper() == "RENN":
+                print("Applying Repeated Edited Nearest Neighbor (RENN) instance reduction...")
+                ibl.fit(train_matrix, instance_red="RENN")
+
+            else:
+                raise ValueError(f"Unknown instance reduction strategy: {instance_reduction_strategy}")
 
         else:   
             # Set up SVM fit
@@ -128,7 +140,8 @@ def run_experiment_portable(
             svm.fit(X_train, y_train)
 
         t1 = time.perf_counter()
-
+        
+        preds = []
         # --- Predict Time (Model Run) ---
         if model in [Models.K_IBL, Models.IR_K_IBL]:
             preds = ibl.run(
@@ -291,7 +304,7 @@ def run_experiment_portable(
         f"\nSuccessfully completed {NUM_SPLITS} folds for {dataset_name}-{model.name.lower()}."
     )
     print(f"Results saved to: {out_csv}")
-    
+
     # --- Save every 10 folds or at the end ---
     SAVE_EVERY = 10
 
