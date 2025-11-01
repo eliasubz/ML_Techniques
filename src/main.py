@@ -225,8 +225,8 @@ if __name__ == "__main__":
             row = create_svm_csv_row(
                 kernel=args.svm_kernel,
                 C=args.C,
-                Degree=args.Degree,
                 gamma=args.gamma,
+                Degree=args.Degree,
                 fold_id=fold_id,
                 num_folds=NUM_SPLITS,
                 n_train=train_matrix.shape[0],
@@ -247,8 +247,13 @@ if __name__ == "__main__":
 
         rows.append(row)
 
-    out_csv.parent.mkdir(parents=True, exist_ok=True)
-    df_rows = pd.DataFrame(rows)
+    # --- Save every 10 folds or at the end ---
+    SAVE_EVERY = 10
 
-    write_header = not out_csv.exists()
-    df_rows.to_csv(out_csv, mode="a", header=write_header, index=False)
+    if (fold_id + 1) % SAVE_EVERY == 0 or (fold_id + 1) == NUM_SPLITS:
+        out_csv.parent.mkdir(parents=True, exist_ok=True)
+        df_rows = pd.DataFrame(rows)
+
+        write_header = not out_csv.exists()
+        df_rows.to_csv(out_csv, mode="a", header=write_header, index=False)
+
