@@ -9,9 +9,7 @@ from feature_weighing import compute_feature_weights
 from preallocated_matrix import PreallocatedMatrix
 from processing_types import FeatureWeightingMethod, RetentionPolicy, EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
 from retention_policies import retention_policies
-import Instance_Reduction
-
-
+from Instance_Reduction import condensed_nearest_neighbor, mcnn, edited_nearest_neighbor, renn
 
 class IBL:
     def __init__(self, ):
@@ -191,13 +189,13 @@ class IBL:
             np_train_matrix = self.ib3_instance_reduction(np_train_matrix_b, timings=True)
         elif instance_red == "CNN":
             print("CNN instance reduction...")
-            np_train_matrix = instance_reduction.condensed_nearest_neighbor(train_matrix, distance_metric=distance_measure)
+            np_train_matrix = condensed_nearest_neighbor(train_matrix, distance_metric=distance_measure)
         elif instance_red == "MCNN":
-            np_train_matrix = instance_reduction.mcnn(train_matrix, distance_metric=distance_measure)
+            np_train_matrix = mcnn(train_matrix, distance_metric=distance_measure)
         elif instance_red == "enn":
-            np_train_matrix= instance_reduction.edited_nearest_neighbor(train_matrix, distance_metric=distance_measure)
+            np_train_matrix= edited_nearest_neighbor(train_matrix, distance_metric=distance_measure)
         elif instance_red == "RENN":
-            np_train_matrix = instance_reduction.renn(train_matrix, distance_metric=distance_measure)
+            np_train_matrix = renn(train_matrix, distance_metric=distance_measure)
         else:
             np_train_matrix = np_train_matrix_b
         

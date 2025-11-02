@@ -121,7 +121,7 @@ def create_ir_ibl_csv_row(
     m = metric_code.get(str(metric), str(metric)[:2])
     v = vote_code.get(str(vote), str(vote)[:2])
     r = ret_code.get(str(retention), str(retention)[:2])
-    config_id = f"{m}-k{int(k)}-{v}-{r}"
+    config_id = f"ir_k_ibl-{instance_reduction_method}"
 
     return {
         "config_id": config_id,

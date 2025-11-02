@@ -247,13 +247,9 @@ if __name__ == "__main__":
 
         rows.append(row)
 
-    # --- Save every 10 folds or at the end ---
-    SAVE_EVERY = 10
+    out_csv.parent.mkdir(parents=True, exist_ok=True)
+    df_rows = pd.DataFrame(rows)
 
-    if (fold_id + 1) % SAVE_EVERY == 0 or (fold_id + 1) == NUM_SPLITS:
-        out_csv.parent.mkdir(parents=True, exist_ok=True)
-        df_rows = pd.DataFrame(rows)
-
-        write_header = not out_csv.exists()
-        df_rows.to_csv(out_csv, mode="a", header=write_header, index=False)
+    write_header = not out_csv.exists()
+    df_rows.to_csv(out_csv, mode="a", header=write_header, index=False)
 
