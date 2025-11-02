@@ -23,12 +23,8 @@ from processing_types import (
     NormalizationStrategy,
 )
 from retention_policies import retention_policies
-<<<<<<< HEAD
-import instance_reduction
-
-=======
 from Instance_Reduction import condensed_nearest_neighbor, mcnn, edited_nearest_neighbor, renn
->>>>>>> 06f5068ab112d2b882d48d49d5ca828c90436ec6
+
 
 class IBL:
     def __init__(
@@ -81,7 +77,8 @@ class IBL:
             # Compute distances
             t0 = time.time()
             # If you have your own euclidean_distance function, replace cdist below
-            distances = euclidean_distance(X[cd_idx], X[i].reshape(1, -1)).ravel()
+            distances = euclidean_distance(
+                X[cd_idx], X[i].reshape(1, -1)).ravel()
             sorted_nearest_idx_in_cd = np.argsort(distances)
             t1 = time.time()
 
@@ -130,7 +127,8 @@ class IBL:
             upto_idx = np.searchsorted(
                 sorted_nearest_idx_in_cd, first_correct_pred_idx, side="right"
             )
-            subset_cd_idx = np.array(cd_idx)[sorted_nearest_idx_in_cd[: upto_idx + 1]]
+            subset_cd_idx = np.array(
+                cd_idx)[sorted_nearest_idx_in_cd[: upto_idx + 1]]
             subset_labels = y[subset_cd_idx]
             same_class_mask = subset_labels == y[i]
 
@@ -155,7 +153,8 @@ class IBL:
                 classification_accuracy = correct_counts / total_obs
                 sqrt_total = np.sqrt(total_obs)
                 acc_std = np.sqrt(
-                    total_obs * classification_accuracy * (1 - classification_accuracy)
+                    total_obs * classification_accuracy *
+                    (1 - classification_accuracy)
                 )
                 acc_low = classification_accuracy - Z * (acc_std / sqrt_total)
                 acc_high = classification_accuracy + Z * (acc_std / sqrt_total)
@@ -183,7 +182,8 @@ class IBL:
 
                 # Vectorized IB3 decision
                 mask_acceptable = acc_low > class_high
-                mask_drop = (acc_high < class_low) & (total_obs >= min_observations)
+                mask_drop = (acc_high < class_low) & (
+                    total_obs >= min_observations)
 
                 acceptable_idx[wrong_idx[mask_acceptable]] = 1
                 dropped_idxs.extend(np.where(mask_drop)[0])
@@ -235,20 +235,25 @@ class IBL:
         np_train_matrix_b = train_matrix.reset_index(drop=True).to_numpy()
 
         if instance_red == "IBL3":
-            np_train_matrix = self.ib3_instance_reduction(np_train_matrix_b, min_observations=min_observations, confidence_z=confidence_z)
+            np_train_matrix = self.ib3_instance_reduction(
+                np_train_matrix_b, min_observations=min_observations, confidence_z=confidence_z)
         elif instance_red == "IBL3_verbose":
             np_train_matrix = self.ib3_instance_reduction(
                 np_train_matrix_b, timings=True, min_observations=min_observations, confidence_z=confidence_z
             )
         elif instance_red == "CNN":
             print("CNN instance reduction...")
-            np_train_matrix = condensed_nearest_neighbor(train_matrix, distance_metric=distance_measure)
+            np_train_matrix = condensed_nearest_neighbor(
+                train_matrix, distance_metric=distance_measure)
         elif instance_red == "MCNN":
-            np_train_matrix = mcnn(train_matrix, distance_metric=distance_measure)
+            np_train_matrix = mcnn(
+                train_matrix, distance_metric=distance_measure)
         elif instance_red == "enn":
-            np_train_matrix= edited_nearest_neighbor(train_matrix, distance_metric=distance_measure)
+            np_train_matrix = edited_nearest_neighbor(
+                train_matrix, distance_metric=distance_measure)
         elif instance_red == "RENN":
-            np_train_matrix = renn(train_matrix, distance_metric=distance_measure)
+            np_train_matrix = renn(
+                train_matrix, distance_metric=distance_measure)
         else:
             np_train_matrix = np_train_matrix_b
 
@@ -263,7 +268,8 @@ class IBL:
         )
 
         if instance_red is not None:
-            self.cp_before_ir = self.get_concept_description_size(np_train_matrix_b)
+            self.cp_before_ir = self.get_concept_description_size(
+                np_train_matrix_b)
             self.cp_after_ir = self.get_concept_description_size()
 
     def run(
@@ -324,11 +330,14 @@ class IBL:
             else:
                 # Use original distance functions
                 if self.metric == "euclidean":
-                    distances = euclidean_distance(self.X.get_filled(), x_instance)
+                    distances = euclidean_distance(
+                        self.X.get_filled(), x_instance)
                 elif self.metric == "cosine":
-                    distances = cosine_distance(self.X.get_filled(), x_instance)
+                    distances = cosine_distance(
+                        self.X.get_filled(), x_instance)
                 elif self.metric == "heom":
-                    distances = heom_distance(self.X.get_filled(), x_instance, types)
+                    distances = heom_distance(
+                        self.X.get_filled(), x_instance, types)
                 else:
                     raise ValueError(f"Unknown metric: {self.metric}")
             dist_end = time.time()
@@ -379,7 +388,8 @@ class IBL:
         total_end = time.time()
         print(f"Total time for all instances: {total_end-total_start:.2f}s")
 
-        self.cp_after_training = self.get_concept_description_size(self.X.get_filled())
+        self.cp_after_training = self.get_concept_description_size(
+            self.X.get_filled())
 
         print("Final training set size:", self.X.get_filled().shape)
         return predictions

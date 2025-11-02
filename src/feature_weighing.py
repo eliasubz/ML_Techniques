@@ -32,7 +32,6 @@ def compute_feature_weights(X: np.ndarray, y: np.ndarray, method: FeatureWeighti
     if method == FeatureWeightingMethod.INFORMATION_GAIN:
         return compute_information_gain_weights(X, y, categorical_features_indices)
     elif method == FeatureWeightingMethod.RELIEFF:
-
         return compute_relieff_weights(X, y, categorical_features_indices)
 
 
