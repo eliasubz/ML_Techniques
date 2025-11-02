@@ -39,8 +39,15 @@ class ParsedArguments:
 def parse_arguments() -> ParsedArguments:
     """Parse and validate command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Run experiments",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="Script to run various IBL and SVM models on a specified dataset. Pass the appropriate options to run your desired model.\n\n"
+                    "Required Parameters:\n"
+                    "  For SVM models:\n"
+                    "    --svm-kernel, --C, --gamma, --degree\n\n"
+                    "  For k-IBL variants (k_ibl, fw_k_ibl, ir_k_ibl):\n"
+                    "    --k, --distance-metric, --voting-strategy, --retention-strategy\n"
+                    "    Additionally for fw_k_ibl: --feature-weighting-strategy\n"
+                    "    Additionally for ir_k_ibl: --instance-reduction-strategy",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
