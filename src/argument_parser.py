@@ -14,24 +14,24 @@ class ParsedArguments:
 
     Using a dataclass enables attribute access with IDE autocompletion.
     """
+    # Always needed
     dataset_name: str
+    model: Models
+
+    # k-IBL
     k: int
     distance_metric: str
     voting_strategy: str
-    model: Models
+    retention_policy: RetentionPolicy
+
     feature_weighting_strategy: FeatureWeightingMethod
     instance_reduction_strategy: str
+
+    # SVM
     svm_kernel: str
-    normalization_strategy: NormalizationStrategy
-    encoding_strategy: EncodingStrategy
-    missing_values_numeric_strategy: MissingValuesNumericStrategy
-    missing_values_categorical_strategy: MissingValuesCategoricalStrategy
-    retention_policy: RetentionPolicy
     C: float
     gamma: float
-    Degree: int
-
-
+    degree: int
 
 
 def parse_arguments() -> ParsedArguments:
@@ -42,14 +42,6 @@ def parse_arguments() -> ParsedArguments:
     )
 
     parser.add_argument(
-        "--model",
-        type=Models,
-        default=Models.K_IBL,
-        choices=list(Models),
-        help=f"Model to use. Valid options"
-    )
-
-    parser.add_argument(
         "--dataset",
         type=str,
         default="pen-based",
@@ -57,77 +49,11 @@ def parse_arguments() -> ParsedArguments:
     )
 
     parser.add_argument(
-        "--feature-weighting-strategy",
-        type=FeatureWeightingMethod,
-        choices=list(FeatureWeightingMethod),
-        help="Feature weighting strategy"
-    )
-
-    parser.add_argument(
-        "--svm-kernel",
-        type=str,
-        choices=['rbf', 'poly'],
-        help="SVM kernel type"
-    )
-
-    parser.add_argument(
-        "--C",
-        type=float,
-        choices=[0.01, 0.1, 1, 10],
-        help="SVM kernel type"
-    )
-
-    parser.add_argument(
-        "--gamma",
-        type=float,
-        choices=[0.001, 0.01, 0.1],
-        help="SVM kernel type"
-    )
-
-    parser.add_argument(
-        "--Degree",
-        type=int,
-        choices=[2, 3],
-        help="SVM kernel type"
-    )
-
-    parser.add_argument(
-        "--instance-reduction-strategy",
-        type=str,
-        choices=["IBL3", "IBL3_verbose", "CNN", "MCNN", "enn", "RENN"],
-        help="Instance Reduction type"
-    )
-
-    parser.add_argument(
-        "--normalization",
-        type=NormalizationStrategy,
-        default=NormalizationStrategy.MEAN_NORMALIZE,
-        choices=list(NormalizationStrategy),
-        help=f"Normalization strategy"
-    )
-
-    parser.add_argument(
-        "--encoding",
-        type=EncodingStrategy,
-        default=EncodingStrategy.LABEL_ENCODE,
-        choices=list(EncodingStrategy),
-        help="Encoding strategy"
-    )
-
-    parser.add_argument(
-        "--missing-numeric-strategy",
-        type=MissingValuesNumericStrategy,
-        default=MissingValuesNumericStrategy.MEAN,
-        choices=list(MissingValuesNumericStrategy),
-        help="Missing values strategy for numeric features"
-    )
-
-    parser.add_argument(
-        "--missing-categorical-strategy",
-        type=MissingValuesCategoricalStrategy,
-        default=MissingValuesCategoricalStrategy.MODE,
-        choices=list(MissingValuesCategoricalStrategy),
-        help=f"Missing values strategy for categorical features. Valid options: {[e.value for e in MissingValuesCategoricalStrategy]}"
+        "--model",
+        type=Models,
+        default=Models.K_IBL,
+        choices=list(Models),
+        help=f"Model to use. Valid options"
     )
 
     parser.add_argument(
@@ -158,29 +84,76 @@ def parse_arguments() -> ParsedArguments:
         help=f"Retention policy"
     )
 
+    parser.add_argument(
+        "--feature-weighting-strategy",
+        type=FeatureWeightingMethod,
+        choices=list(FeatureWeightingMethod),
+        help="Feature weighting strategy"
+    )
+
+    parser.add_argument(
+        "--instance-reduction-strategy",
+        type=str,
+        choices=["IBL3", "CNN", "enn"],
+        help="Instance Reduction type"
+    )
+
+    parser.add_argument(
+        "--svm-kernel",
+        type=str,
+        choices=['rbf', 'poly'],
+        help="SVM kernel type"
+    )
+
+    parser.add_argument(
+        "--C",
+        type=float,
+        choices=[0.01, 0.1, 1, 10],
+        help="SVM kernel type"
+    )
+
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        choices=[0.001, 0.01, 0.1],
+        help="SVM kernel type"
+    )
+
+    parser.add_argument(
+        "--degree",
+        type=int,
+        choices=[2, 3],
+        help="SVM kernel type"
+    )
+
     args = parser.parse_args()
 
     parsed_args = ParsedArguments(
         dataset_name=args.dataset,
+        model=args.model,
         k=args.k,
         distance_metric=args.distance_metric,
         voting_strategy=args.voting_strategy,
-        model=args.model,
+        retention_policy=args.retention_strategy,
         feature_weighting_strategy=args.feature_weighting_strategy,
         instance_reduction_strategy=args.instance_reduction_strategy,
         svm_kernel=args.svm_kernel,
         C=args.C,
         gamma=args.gamma,
-        Degree=args.Degree,
-        normalization_strategy=args.normalization,
-        encoding_strategy=args.encoding,
-        missing_values_numeric_strategy=args.missing_numeric_strategy,
-        missing_values_categorical_strategy=args.missing_categorical_strategy,
-        retention_policy=args.retention_strategy
+        Degree=args.degree
     )
 
-    if parsed_args.model is Models.SVM and parsed_args.svm_kernel is None:
-        parser.error("--svm-kernel is required when --model is 'svm'.")
+    if parsed_args.model is Models.SVM:  # Missing parameters for SVM
+        if parsed_args.svm_kernel is None:
+            parser.error("--svm-kernel is required when --model is 'svm'.")
+        if parsed_args.C is None:
+            parser.error("--C is required when --model is 'svm'.")
+        if parsed_args.gamma is None:
+            parser.error("--gamma is required when --model is 'svm'.")
+        if parsed_args.degree is None:
+            parser.error("--degree is required when --model is 'svm'.")
+
+    # Missing parameters for IBL
     if parsed_args.model in [Models.K_IBL, Models.FW_K_IBL, Models.IR_K_IBL]:
         if parsed_args.k is None:
             parser.error("--k is required when --model is a k-IBL variant.")
