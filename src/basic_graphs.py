@@ -28,7 +28,7 @@ agg_df = (
     .sort_values(by="accuracy", ascending=False)
 )
 
-print("✅ Aggregated metrics per config:")
+print("Aggregated metrics per config:")
 print(agg_df.head())
 
 # === 2. Visualization setup ===
@@ -104,4 +104,3 @@ plt.show()
 
 # === 8. Optional: Export aggregated summary ===
 agg_df.to_csv("results/adult-b_ibl_summary.csv", index=False)
-print("\n📁 Saved aggregated summary to results/adult-b_ibl_summary.csv")
