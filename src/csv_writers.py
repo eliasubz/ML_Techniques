@@ -100,13 +100,17 @@ def create_ir_ibl_csv_row(
     precision_weighted: float,
     recall_weighted: float,
     f1_weighted: float,
+
     confusion_matrix: np.ndarray,
     labels: np.ndarray,
     instance_reduction_method: str,
     memory_before_ir: float,
     memory_after_ir: float,
     memory_after_training: float,
-    percentage_memory_reduction: float
+    percentage_memory_reduction: float,
+    ir_k: int,
+    z_score_ibl3 = "-",
+    min_observations_ibl3 = "-",
 ) -> dict:
     """Create a CSV row dictionary for k-IBL results (without fw_method column)."""
     metric_code = {"euclidean": "e", "cosine": "c", "heom": "h"}
@@ -130,7 +134,9 @@ def create_ir_ibl_csv_row(
         "k": k,
         "vote": vote,
         "retention": retention,
-
+        "ibl_3_z_score": z_score_ibl3,
+        "ibl_3_min_obs": min_observations_ibl3,
+        "ir_k": ir_k,
 
         "fold_id": fold_id,
         "num_folds": num_folds,

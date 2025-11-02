@@ -4,15 +4,36 @@ import numpy as np
 from collections import Counter
 import time
 
-from distance_measures import cosine_distance, euclidean_distance, heom_distance, weighted_cosine_distance, weighted_euclidean_distance, weighted_heom_distance
+from distance_measures import (
+    cosine_distance,
+    euclidean_distance,
+    heom_distance,
+    weighted_cosine_distance,
+    weighted_euclidean_distance,
+    weighted_heom_distance,
+)
 from feature_weighing import compute_feature_weights
 from preallocated_matrix import PreallocatedMatrix
-from processing_types import FeatureWeightingMethod, RetentionPolicy, EncodingStrategy, MissingValuesCategoricalStrategy, MissingValuesNumericStrategy, NormalizationStrategy
+from processing_types import (
+    FeatureWeightingMethod,
+    RetentionPolicy,
+    EncodingStrategy,
+    MissingValuesCategoricalStrategy,
+    MissingValuesNumericStrategy,
+    NormalizationStrategy,
+)
 from retention_policies import retention_policies
+<<<<<<< HEAD
+import instance_reduction
+
+=======
 from Instance_Reduction import condensed_nearest_neighbor, mcnn, edited_nearest_neighbor, renn
+>>>>>>> 06f5068ab112d2b882d48d49d5ca828c90436ec6
 
 class IBL:
-    def __init__(self, ):
+    def __init__(
+        self,
+    ):
         """
         k-Instance Based Learner (k-NN) with:
         - metrics: 'euclidean', 'cosine', 'heom'
@@ -24,7 +45,13 @@ class IBL:
         self.cp_after_ir = 0
         self.cp_after_training = 0
 
-    def ib3_instance_reduction(self, np_train_matrix: np.ndarray, timings: bool = False) -> np.ndarray:
+    def ib3_instance_reduction(
+        self,
+        np_train_matrix: np.ndarray,
+        timings: bool = False,
+        confidence_z: float = 0.674,
+        min_observations: int = 4,
+    ) -> np.ndarray:
         """
         Perform IB3 instance reduction on the training data.
         Timers added for diagnostics (prints every 100 iterations).
@@ -37,8 +64,7 @@ class IBL:
         record_false = np.zeros(len(np_train_matrix), dtype=int)
         acceptable_idx = np.zeros(len(np_train_matrix), dtype=int)
         class_counts = Counter()
-        Z = 0.674  # 75% confidence interval z-score
-
+        Z = confidence_z
         X = np_train_matrix[:, :-1].astype(float)
         y = np_train_matrix[:, -1]
         n = len(X)
@@ -48,7 +74,7 @@ class IBL:
         # --- Main Loop ---
         for i in range(1, n):
 
-            if i % 1000 == 0 or i == len(X) - 1: 
+            if i % 1000 == 0 or i == len(X) - 1:
                 print(f"Processed {i}/{len(X)-1} instances...")
             iter_start = time.time()
 
@@ -60,9 +86,11 @@ class IBL:
             t1 = time.time()
 
             # Classification decision
-            correct_classifications = (y[cd_idx][sorted_nearest_idx_in_cd] == y[i]).astype(int)
+            correct_classifications = (
+                y[cd_idx][sorted_nearest_idx_in_cd] == y[i]
+            ).astype(int)
             first_correct_pred_idx = np.argmax(correct_classifications)
-            
+
             t2 = time.time()
 
             # Find first acceptable neighbor
@@ -99,8 +127,10 @@ class IBL:
             dropped_idxs = []
 
             # Only consider relevant subset once
-            upto_idx = np.searchsorted(sorted_nearest_idx_in_cd, first_correct_pred_idx, side='right')
-            subset_cd_idx = np.array(cd_idx)[sorted_nearest_idx_in_cd[:upto_idx + 1]]
+            upto_idx = np.searchsorted(
+                sorted_nearest_idx_in_cd, first_correct_pred_idx, side="right"
+            )
+            subset_cd_idx = np.array(cd_idx)[sorted_nearest_idx_in_cd[: upto_idx + 1]]
             subset_labels = y[subset_cd_idx]
             same_class_mask = subset_labels == y[i]
 
@@ -118,28 +148,42 @@ class IBL:
                 valid_mask = total_obs > 0
                 wrong_idx = wrong_idx[valid_mask]
                 total_obs = total_obs[valid_mask]
+
                 correct_counts = correct_counts[valid_mask]
                 false_counts = false_counts[valid_mask]
 
                 classification_accuracy = correct_counts / total_obs
                 sqrt_total = np.sqrt(total_obs)
-                acc_std = np.sqrt(total_obs * classification_accuracy * (1 - classification_accuracy))
+                acc_std = np.sqrt(
+                    total_obs * classification_accuracy * (1 - classification_accuracy)
+                )
                 acc_low = classification_accuracy - Z * (acc_std / sqrt_total)
                 acc_high = classification_accuracy + Z * (acc_std / sqrt_total)
 
                 # Vectorized class stats
                 class_labels = y[wrong_idx]
-                class_count_array = np.array([class_counts.get(lbl, 0) for lbl in class_labels])
+                class_count_array = np.array(
+                    [class_counts.get(lbl, 0) for lbl in class_labels]
+                )
                 total_count = float(i)
 
-                class_freq = np.divide(class_count_array, total_count, out=np.zeros_like(class_count_array, dtype=float), where=total_count > 0)
-                class_std = np.sqrt(class_freq * (1 - class_freq) / total_count) if total_count > 0 else np.zeros_like(class_freq)
+                class_freq = np.divide(
+                    class_count_array,
+                    total_count,
+                    out=np.zeros_like(class_count_array, dtype=float),
+                    where=total_count > 0,
+                )
+                class_std = (
+                    np.sqrt(class_freq * (1 - class_freq) / total_count)
+                    if total_count > 0
+                    else np.zeros_like(class_freq)
+                )
                 class_low = class_freq - Z * class_std
                 class_high = class_freq + Z * class_std
 
                 # Vectorized IB3 decision
                 mask_acceptable = acc_low > class_high
-                mask_drop = (acc_high < class_low) & (total_obs >= 4)
+                mask_drop = (acc_high < class_low) & (total_obs >= min_observations)
 
                 acceptable_idx[wrong_idx[mask_acceptable]] = 1
                 dropped_idxs.extend(np.where(mask_drop)[0])
@@ -164,29 +208,38 @@ class IBL:
                 print(f"  Total iteration: {t7 - iter_start:.5f} s\n")
 
         total_end = time.time()
-        print(f"\nIB3 instance reduction complete. Total time: {total_end - total_start:.2f}s")
+        print(
+            f"\nIB3 instance reduction complete. Total time: {total_end - total_start:.2f}s"
+        )
 
         return np_train_matrix[cd_idx, :]
-    
 
-    def get_concept_description_size(self, matrix = None):
+    def get_concept_description_size(self, matrix=None):
         if matrix is not None:
-            storage_mb = matrix.nbytes / (1024 ** 2)
+            storage_mb = matrix.nbytes / (1024**2)
             print(f"\nStorage used with specified matrix: {storage_mb:.2f} MB")
             return storage_mb
-            
-        storage_mb = self.X.nbytes / (1024 ** 2)
+
+        storage_mb = self.X.nbytes / (1024**2)
         print(f"Storage used by X: {storage_mb:.2f} MB")
         return storage_mb
 
-
-    def fit(self, train_matrix: pd.DataFrame, distance_measure = "euclidean", instance_red: str = None):
+    def fit(
+        self,
+        train_matrix: pd.DataFrame,
+        min_observations=None,
+        confidence_z=None,
+        distance_measure="euclidean",
+        instance_red: str = None,
+    ):
         np_train_matrix_b = train_matrix.reset_index(drop=True).to_numpy()
-        
+
         if instance_red == "IBL3":
-            np_train_matrix = self.ib3_instance_reduction(np_train_matrix_b)
+            np_train_matrix = self.ib3_instance_reduction(np_train_matrix_b, min_observations=min_observations, confidence_z=confidence_z)
         elif instance_red == "IBL3_verbose":
-            np_train_matrix = self.ib3_instance_reduction(np_train_matrix_b, timings=True)
+            np_train_matrix = self.ib3_instance_reduction(
+                np_train_matrix_b, timings=True, min_observations=min_observations, confidence_z=confidence_z
+            )
         elif instance_red == "CNN":
             print("CNN instance reduction...")
             np_train_matrix = condensed_nearest_neighbor(train_matrix, distance_metric=distance_measure)
@@ -198,18 +251,30 @@ class IBL:
             np_train_matrix = renn(train_matrix, distance_metric=distance_measure)
         else:
             np_train_matrix = np_train_matrix_b
-        
+
         self.X = np_train_matrix[:, :-1]
         self.y = np_train_matrix[:, -1]
 
-        print("Instances reduced from", np_train_matrix_b.shape[0], "to", np_train_matrix.shape[0])
+        print(
+            "Instances reduced from",
+            np_train_matrix_b.shape[0],
+            "to",
+            np_train_matrix.shape[0],
+        )
 
         if instance_red is not None:
-            self.cp_before_ir =  self.get_concept_description_size(np_train_matrix_b)
-            self.cp_after_ir =  self.get_concept_description_size()
-        
+            self.cp_before_ir = self.get_concept_description_size(np_train_matrix_b)
+            self.cp_after_ir = self.get_concept_description_size()
 
-    def run(self, test_matrix: pd.DataFrame, k=5, metric="euclidean", vote="modified_plurality", retention_policy="DD_retention", types=None):
+    def run(
+        self,
+        test_matrix: pd.DataFrame,
+        k=5,
+        metric="euclidean",
+        vote="modified_plurality",
+        retention_policy="DD_retention",
+        types=None,
+    ):
         self.k = int(k)
         self.metric = metric
         self.vote = vote
@@ -219,7 +284,8 @@ class IBL:
         self.y_test = test_arr[:, -1]
 
         preallocatedMatrix = PreallocatedMatrix(
-            self.X.shape[0] + self.X_test.shape[0], self.X.shape[1])
+            self.X.shape[0] + self.X_test.shape[0], self.X.shape[1]
+        )
         preallocatedMatrix.append_matrix(self.X)
         self.X = preallocatedMatrix
 
@@ -243,26 +309,26 @@ class IBL:
                 # Use weighted distance functions
                 if self.metric == "euclidean":
                     distances = weighted_euclidean_distance(
-                        self.X.get_filled(), x_instance, self.feature_weights)
+                        self.X.get_filled(), x_instance, self.feature_weights
+                    )
                 elif self.metric == "cosine":
                     distances = weighted_cosine_distance(
-                        self.X.get_filled(), x_instance, self.feature_weights)
+                        self.X.get_filled(), x_instance, self.feature_weights
+                    )
                 elif self.metric == "heom":
                     distances = weighted_heom_distance(
-                        self.X.get_filled(), x_instance, types, self.feature_weights)
+                        self.X.get_filled(), x_instance, types, self.feature_weights
+                    )
                 else:
                     raise ValueError(f"Unknown metric: {self.metric}")
             else:
                 # Use original distance functions
                 if self.metric == "euclidean":
-                    distances = euclidean_distance(
-                        self.X.get_filled(), x_instance)
+                    distances = euclidean_distance(self.X.get_filled(), x_instance)
                 elif self.metric == "cosine":
-                    distances = cosine_distance(
-                        self.X.get_filled(), x_instance)
+                    distances = cosine_distance(self.X.get_filled(), x_instance)
                 elif self.metric == "heom":
-                    distances = heom_distance(
-                        self.X.get_filled(), x_instance, types)
+                    distances = heom_distance(self.X.get_filled(), x_instance, types)
                 else:
                     raise ValueError(f"Unknown metric: {self.metric}")
             dist_end = time.time()
@@ -294,7 +360,11 @@ class IBL:
             retention_start = time.time()
 
             should_retain = retention_policies(
-                retention_policy, instance_class=y_instance, pred=pred, k_nearest_labels=neighbor_labels)
+                retention_policy,
+                instance_class=y_instance,
+                pred=pred,
+                k_nearest_labels=neighbor_labels,
+            )
 
             if should_retain:
                 self.X.append_column(x_instance)
@@ -314,8 +384,17 @@ class IBL:
         print("Final training set size:", self.X.get_filled().shape)
         return predictions
 
-    def fw_KIBLAlgorithm(self, test_matrix: pd.DataFrame, types, k=5, metric="euclidean", vote="modified_plurality",
-                         retention_policy="DD_retention", feature_weighting_method: FeatureWeightingMethod = FeatureWeightingMethod.INFORMATION_GAIN, post_encoding_types: list = None):
+    def fw_KIBLAlgorithm(
+        self,
+        test_matrix: pd.DataFrame,
+        types,
+        k=5,
+        metric="euclidean",
+        vote="modified_plurality",
+        retention_policy="DD_retention",
+        feature_weighting_method: FeatureWeightingMethod = FeatureWeightingMethod.INFORMATION_GAIN,
+        post_encoding_types: list = None,
+    ):
         """
         Feature-Weighted k-Instance Based Learning Algorithm.
 
@@ -336,8 +415,10 @@ class IBL:
         """
         self.types = types
         self.feature_weights = compute_feature_weights(
-            self.X, self.y, method=feature_weighting_method, post_encoding_types=np.asarray(
-                post_encoding_types)
+            self.X,
+            self.y,
+            method=feature_weighting_method,
+            post_encoding_types=np.asarray(post_encoding_types),
         )
 
         # Run the standard IBL algorithm with feature weights
@@ -347,7 +428,7 @@ class IBL:
             metric=metric,
             vote=vote,
             retention_policy=retention_policy,
-            types=types
+            types=types,
         )
 
         return predictions
@@ -360,8 +441,9 @@ class IBL:
         """
         idxs = list(range(len(labels_in_rank)))
         while True:
-            vals, counts = np.unique([labels_in_rank[i]
-                                     for i in idxs], return_counts=True)
+            vals, counts = np.unique(
+                [labels_in_rank[i] for i in idxs], return_counts=True
+            )
             m = counts.max()
             winners = [v for v, c in zip(vals, counts) if c == m]
             if len(winners) == 1:
@@ -410,5 +492,11 @@ if __name__ == "__main__":
     ibl = IBL()
     instance_red = [None, "IBL3", "IBL3_verbose", "CNN", "MCNN", "enn", "RENN"]
     ibl.fit(train_matrix, instance_red="RENN")
-    preds = ibl.run(test_matrix, k=5, metric="heom", vote="modified_plurality",
-                    retention_policy=RetentionPolicy.NEVER_RETAIN, types=types)
+    preds = ibl.run(
+        test_matrix,
+        k=5,
+        metric="heom",
+        vote="modified_plurality",
+        retention_policy=RetentionPolicy.NEVER_RETAIN,
+        types=types,
+    )
