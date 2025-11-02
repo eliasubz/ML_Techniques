@@ -50,9 +50,7 @@ class IBL:
     ) -> np.ndarray:
         """
         Perform IB3 instance reduction on the training data.
-        Timers added for diagnostics (prints every 100 iterations).
         """
-        print("Starting IB3 instance reduction...")
 
         # --- Initialization ---
         cd_idx = [0]  # Concept description
@@ -70,8 +68,6 @@ class IBL:
         # --- Main Loop ---
         for i in range(1, n):
 
-            if i % 1000 == 0 or i == len(X) - 1:
-                print(f"Processed {i}/{len(X)-1} instances...")
             iter_start = time.time()
 
             # Compute distances
@@ -195,33 +191,16 @@ class IBL:
                     cd_idx.remove(drop_idx)
             t7 = time.time()
 
-            # Print timing every 100th iteration
-            if timings and i % 100 == 0 or i == n - 1:
-                print(f"\nIteration {i}/{n-1}")
-                print(f"  Distance calc:   {t1 - t0:.5f} s")
-                print(f"  Classification:  {t2 - t1:.5f} s")
-                print(f"  Acceptable check:{t3 - t2:.5f} s")
-                print(f"  Record update:   {t4 - t3:.5f} s")
-                print(f"  Class counting:  {t5 - t4:.5f} s")
-                print(f"  CI computations: {t6 - t5:.5f} s")
-                print(f"  Noise removal:   {t7 - t6:.5f} s")
-                print(f"  Total iteration: {t7 - iter_start:.5f} s\n")
-
         total_end = time.time()
-        print(
-            f"\nIB3 instance reduction complete. Total time: {total_end - total_start:.2f}s"
-        )
 
         return np_train_matrix[cd_idx, :]
 
     def get_concept_description_size(self, matrix=None):
         if matrix is not None:
             storage_mb = matrix.nbytes / (1024**2)
-            print(f"\nStorage used with specified matrix: {storage_mb:.2f} MB")
             return storage_mb
 
         storage_mb = self.X.nbytes / (1024**2)
-        print(f"Storage used by X: {storage_mb:.2f} MB")
         return storage_mb
 
     def fit(
@@ -242,7 +221,6 @@ class IBL:
                 np_train_matrix_b, timings=True, min_observations=min_observations, confidence_z=confidence_z
             )
         elif instance_red == "CNN":
-            print("CNN instance reduction...")
             np_train_matrix = condensed_nearest_neighbor(
                 train_matrix, distance_metric=distance_measure)
         elif instance_red == "MCNN":
@@ -259,13 +237,6 @@ class IBL:
 
         self.X = np_train_matrix[:, :-1]
         self.y = np_train_matrix[:, -1]
-
-        print(
-            "Instances reduced from",
-            np_train_matrix_b.shape[0],
-            "to",
-            np_train_matrix.shape[0],
-        )
 
         if instance_red is not None:
             self.cp_before_ir = self.get_concept_description_size(
@@ -306,9 +277,6 @@ class IBL:
 
             x_instance = self.X_test[i, :]
             y_instance = self.y_test[i]
-            # print(self.X.get_filled())
-            # print(self.X.get_filled()[0])
-            # print(self.X.get_filled().shape)
 
             dist_start = time.time()
             if self.feature_weights is not None:
@@ -386,12 +354,10 @@ class IBL:
             # print(f"Instance {i}/{len(test_matrix)}: dist={dist_end-dist_start:.5f}s, sort={sort_end-sort_start:.5f}s, vote={vote_end-vote_start:.5f}s, retention={retention_end-retention_start:.5f}s, total={step_end-step_start:.5f}s")
 
         total_end = time.time()
-        print(f"Total time for all instances: {total_end-total_start:.2f}s")
 
         self.cp_after_training = self.get_concept_description_size(
             self.X.get_filled())
 
-        print("Final training set size:", self.X.get_filled().shape)
         return predictions
 
     def fw_KIBLAlgorithm(

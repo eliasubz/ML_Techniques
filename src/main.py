@@ -55,10 +55,11 @@ if __name__ == "__main__":
     labels = np.array(sorted(all_labels))
 
     out_csv = Path(RESULTS_PATH +
-                   f"{args.dataset_name}-{args.model}.csv")
+                   f"{args.out_filename}")
 
     rows = []
     for fold_id, (train_matrix, test_matrix) in enumerate(splits):
+
         t0 = time.perf_counter()
 
         if args.model is not Models.SVM:
@@ -69,33 +70,24 @@ if __name__ == "__main__":
 
             # --- Instance reduction strategy selection ---
             if args.instance_reduction_strategy is None:
-                print("No instance reduction selected.")
                 ibl.fit(train_matrix)
 
             elif args.instance_reduction_strategy == "IBL3":
-                print("Applying IBL3 instance reduction...")
                 ibl.fit(train_matrix, instance_red="IBL3")
 
             elif args.instance_reduction_strategy == "IBL3_verbose":
-                print("Applying IBL3 (verbose) instance reduction...")
                 ibl.fit(train_matrix, instance_red="IBL3_verbose")
 
             elif args.instance_reduction_strategy == "CNN":
-                print("Applying Condensed Nearest Neighbor (CNN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="CNN")
 
             elif args.instance_reduction_strategy == "MCNN":
-                print(
-                    "Applying Modified Condensed Nearest Neighbor (MCNN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="MCNN")
 
             elif args.instance_reduction_strategy.lower() == "enn":
-                print("Applying Edited Nearest Neighbor (ENN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="enn")
 
             elif args.instance_reduction_strategy.upper() == "RENN":
-                print(
-                    "Applying Repeated Edited Nearest Neighbor (RENN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="RENN")
 
             else:
@@ -260,9 +252,12 @@ if __name__ == "__main__":
             )
 
         rows.append(row)
+        print(f"- Fold {fold_id}/{NUM_SPLITS} completed")
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     df_rows = pd.DataFrame(rows)
 
     write_header = not out_csv.exists()
     df_rows.to_csv(out_csv, mode="a", header=write_header, index=False)
+
+    print(f"Results saved: {out_csv}")

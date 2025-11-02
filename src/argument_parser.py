@@ -33,6 +33,8 @@ class ParsedArguments:
     gamma: float
     degree: int
 
+    out_filename: str
+
 
 def parse_arguments() -> ParsedArguments:
     """Parse and validate command-line arguments."""
@@ -126,6 +128,12 @@ def parse_arguments() -> ParsedArguments:
         help="SVM kernel type"
     )
 
+    parser.add_argument(
+        "--out_filename",
+        type=str,
+        help="output filename"
+    )
+
     args = parser.parse_args()
 
     parsed_args = ParsedArguments(
@@ -140,8 +148,12 @@ def parse_arguments() -> ParsedArguments:
         svm_kernel=args.svm_kernel,
         C=args.C,
         gamma=args.gamma,
-        degree=args.degree
+        degree=args.degree,
+        out_filename=args.out_filename
     )
+
+    if parsed_args.out_filename is None:
+        parser.error("--out_filename is required")
 
     if parsed_args.model is Models.SVM:  # Missing parameters for SVM
         if parsed_args.svm_kernel is None:
