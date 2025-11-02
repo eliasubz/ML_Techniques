@@ -7,3 +7,4 @@ pytest
 pytest-cov
 scikit-posthocs
 matplotlib
+seaborn

@@ -5,8 +5,8 @@ import re
 from pathlib import Path
 
 # === Load data ===
-# file_path = Path("src/results/pen-based-k_ibl.csv")
 file_path = Path("src/results/adult-k_ibl.csv")
+# file_path = Path("src/results/pen-based-k_ibl.csv")
 df = pd.read_csv(file_path)
 
 # === Parse config_id into meaningful columns ===

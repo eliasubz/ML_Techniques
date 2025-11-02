@@ -132,7 +132,8 @@ python3 src/statistical_analysis.py filename_1 filename_2 filename_k --metric f1
 
 **Example 6 (windows): Computing plots from short_list data (Uncomment `grouped_diagrams.py line 9` to switch the dataset):**
 ```bash
-python src/grouped_diagrams.py
+python src/grouped_diagrams_ibl.py
+python src/grouped_diagrams_svm.py
 ```
 
 
