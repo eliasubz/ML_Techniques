@@ -194,7 +194,8 @@ python3 src/main.py  --model ir_k_ibl  --dataset pen-based  --instance-reduction
 **Example 5: Running Statistical Analysis (compatible with any number of files, and all types of configs):**
 
 ```bash
-python3 src/statistical_analysis.py filename_1 filename_2 filename_k --metric f1_macro --export-csv output_filename --savefig filename.png
+python src/statistical_analysis.py filename_1 filename_2 filename_k --metric f1_macro --export-csv output_filename --savefig filename.png
+python src/statistical_analysis.py "src/results/pen-based-ir_k_ibl copy.csv" src/results/pen-besed-k_ibl_best.csv --metric f1_macro --export-csv adult_CD --savefig adult_cd.png
 ```
 
 **Example 6: Creating plots from data (Uncomment `grouped_diagrams.py line 9` to switch the dataset):**
