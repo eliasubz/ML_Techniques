@@ -55,7 +55,7 @@ class Parser:
         self.encoding_strategy = encoding_strategy
         self.missing_values_numeric_strategy = missing_values_numeric_strategy
         self.missing_values_categorical_strategy = missing_values_categorical_strategy
-        self.post_encoding_types = None  # is calculated during processing
+        self.post_encoding_types = []  # is calculated during processing per split
         if faster_parser:
             data_splits = self._load_arff_dataset(True)
         else:
@@ -184,8 +184,8 @@ class Parser:
             if self.encoding_strategy is not None:
                 X_train, X_test, post_encoding_types = encode_data(
                     X_train, X_test, self.encoding_strategy)
-            if self.post_encoding_types is None:
-                self.post_encoding_types = post_encoding_types
+
+            self.post_encoding_types.append(post_encoding_types)
 
             train_out = pd.concat([X_train.reset_index(drop=True),
                                    y_train.rename(target_col)], axis=1)

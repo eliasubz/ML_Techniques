@@ -23,8 +23,12 @@ from processing_types import (
     NormalizationStrategy,
 )
 from retention_policies import retention_policies
+<<<<<<< HEAD
 import instance_reduction
 
+=======
+from Instance_Reduction import condensed_nearest_neighbor, mcnn, edited_nearest_neighbor, renn
+>>>>>>> 06f5068ab112d2b882d48d49d5ca828c90436ec6
 
 class IBL:
     def __init__(
@@ -238,21 +242,13 @@ class IBL:
             )
         elif instance_red == "CNN":
             print("CNN instance reduction...")
-            np_train_matrix = instance_reduction.condensed_nearest_neighbor(
-                train_matrix, distance_metric=distance_measure
-            )
+            np_train_matrix = condensed_nearest_neighbor(train_matrix, distance_metric=distance_measure)
         elif instance_red == "MCNN":
-            np_train_matrix = instance_reduction.mcnn(
-                train_matrix, distance_metric=distance_measure
-            )
+            np_train_matrix = mcnn(train_matrix, distance_metric=distance_measure)
         elif instance_red == "enn":
-            np_train_matrix = instance_reduction.edited_nearest_neighbor(
-                train_matrix, distance_metric=distance_measure
-            )
+            np_train_matrix= edited_nearest_neighbor(train_matrix, distance_metric=distance_measure)
         elif instance_red == "RENN":
-            np_train_matrix = instance_reduction.renn(
-                train_matrix, distance_metric=distance_measure
-            )
+            np_train_matrix = renn(train_matrix, distance_metric=distance_measure)
         else:
             np_train_matrix = np_train_matrix_b
 

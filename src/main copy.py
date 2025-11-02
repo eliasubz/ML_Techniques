@@ -161,7 +161,7 @@ def run_experiment_portable(
                 retention_policy=retention_policy,
                 types=types,
                 feature_weighting_method=feature_weighting_strategy,
-                post_encoding_types=post_encoding_types,
+                post_encoding_types=post_encoding_types[fold_id],
             )
         
         elif model is Models.SVM:

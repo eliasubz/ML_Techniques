@@ -12,8 +12,8 @@ except Exception:
     sp = None
 
 # Settings
-INPUT_CSV  = Path("src/results/adult-k_ibl.csv")
-OUTPUT_CSV = Path("src/results/adult_shortlist2.csv")
+INPUT_CSV  = Path("src/results/pen-based-k_ibl.csv")
+OUTPUT_CSV = Path("src/results/pen-based-k_ibl_shortlist.csv")
 METRIC_COL = "f1_macro"   # higher is better
 TOP_N      = 12          # target number of configuration
 ALPHA      = 0.05         # significance level for contrastive picks
