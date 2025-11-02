@@ -5,10 +5,36 @@ import numpy as np
 from pathlib import Path
 import re
 
-# === Load data ===
-file_path = Path("src/results/adult-ir_k_ibl.csv")
 file_path = Path("src/results/pen-based-ir_k_ibl.csv")
+file_path = Path("src/results/adult-ir_k_ibl.csv")
 df = pd.read_csv(file_path)
+
+
+
+import pandas as pd
+
+# Load your CSV file
+# df = pd.read_csv("your_results.csv")
+
+# Group by the instance reduction method
+agg = (
+    df.groupby("instance_reduction_method")
+      .agg(
+          f1_macro_mean=("f1_macro", "mean"),
+          f1_macro_std=("f1_macro", "std"),
+          total_time_s_mean=("total_time_s", "mean"),
+          total_time_s_std=("total_time_s", "std"),
+          memory_mean=("memory_after_ir", "mean"),
+          memory_std=("memory_after_ir", "std"),
+          memory_reduction_mean=("percentage_memory_reduction", "mean"),
+          memory_reduction_std=("percentage_memory_reduction", "std"),
+      )
+      .reset_index()
+)
+
+# Print nicely
+print("\n=== Summary per IR method ===")
+print(agg.to_string(index=False))
 
 # === Clean columns ===
 df.columns = df.columns.str.strip().str.lower()
@@ -28,8 +54,12 @@ agg = (
 agg.columns = ['_'.join(col) for col in agg.columns]
 agg = agg.reset_index()
 
-print("\n=== Summary per IR method ===")
-print(agg[["instance_reduction_method", "accuracy_mean", "f1_macro_mean", "total_time_s_mean"]])
+# print("\n=== Summary per IR method ===")
+# print(agg[["instance_reduction_method", "accuracy_mean", "f1_macro_mean", "total_time_s_mean"]])
+
+with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.width', None):
+    print("\n=== Summary per IR method ===")
+    print(agg[["instance_reduction_method", "accuracy_mean", "f1_macro_mean", "total_time_s_mean"]])
 
 sns.set(style="whitegrid", context="talk")
 plt.rcParams["figure.figsize"] = (8, 5)

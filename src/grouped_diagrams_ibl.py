@@ -5,8 +5,8 @@ import re
 from pathlib import Path
 
 # === Load data ===
-file_path = Path("src/results/adult-k_ibl.csv")
-# file_path = Path("src/results/pen-based-k_ibl.csv")
+file_path = Path("src/results/pen-based-k_ibl.csv")
+file_path = Path("src/results/adult-ir_k_ibl.csv")
 df = pd.read_csv(file_path)
 
 # === Parse config_id into meaningful columns ===
@@ -17,7 +17,7 @@ def parse_config(config_id):
         return pd.Series({
             "k": int(match.group(1)),
             "vote": match.group(2),
-            "retention": match.group(3)
+            "retention": match.group(3),
         })
     else:
         return pd.Series({"k": None, "vote": None, "retention": None})
@@ -62,7 +62,7 @@ def plot_grouped(df, group_col, metric, title, ylabel, filename):
     plt.tight_layout()
     plt.show()
 
-# === 1️⃣ Accuracy by k ===
+# === Accuracy by k ===
 plot_grouped(
     agg,
     "k",
@@ -75,7 +75,7 @@ plot_grouped(
 
 
 
-# === 5️⃣ Trade-off plot: F1 Macro vs Runtime (showing all hyperparameters) ===
+# === Trade-off plot: F1 Macro vs Runtime (showing all hyperparameters) ===
 plt.figure(figsize=(8, 6))
 sns.scatterplot(
     data=agg,
@@ -94,4 +94,3 @@ plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 plt.tight_layout()
 plt.show()
 
-print("✅ Visualization now includes vote (color), retention (marker), and k (size).")
