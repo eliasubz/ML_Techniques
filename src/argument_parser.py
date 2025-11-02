@@ -140,7 +140,7 @@ def parse_arguments() -> ParsedArguments:
         svm_kernel=args.svm_kernel,
         C=args.C,
         gamma=args.gamma,
-        Degree=args.degree
+        degree=args.degree
     )
 
     if parsed_args.model is Models.SVM:  # Missing parameters for SVM

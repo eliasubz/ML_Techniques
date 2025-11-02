@@ -11,6 +11,10 @@ from argument_parser import parse_arguments
 from csv_writers import create_fw_k_ibl_csv_row, create_k_ibl_csv_row, create_ir_ibl_csv_row, create_svm_csv_row
 from model_types import Models
 
+from processing_types import (
+    NormalizationStrategy, EncodingStrategy,
+    MissingValuesNumericStrategy, MissingValuesCategoricalStrategy, RetentionPolicy
+)
 
 BASE_PATH = "datasetsCBR/datasetsCBR/"
 NUM_SPLITS = 10
@@ -22,16 +26,23 @@ if __name__ == "__main__":
         args = parse_arguments()
     except ValueError as e:
         raise ValueError(f"Argument parsing error: {e}")
+    
+    encoding_for_metrics={
+        "euclidean": EncodingStrategy.ONE_HOT_ENCODE,
+        "cosine":    EncodingStrategy.ONE_HOT_ENCODE,
+        "heom": EncodingStrategy.LABEL_ENCODE, 
+    }
 
     parser = Parser(
         base_path=BASE_PATH,
         dataset_name=args.dataset_name,
-        normalization_strategy=args.normalization_strategy,
-        encoding_strategy=args.encoding_strategy,
-        missing_values_numeric_strategy=args.missing_values_numeric_strategy,
-        missing_values_categorical_strategy=args.missing_values_categorical_strategy,
+        normalization_strategy=NormalizationStrategy.MEAN_NORMALIZE,
+        encoding_strategy=encoding_for_metrics[args.distance_metric],
+        missing_values_numeric_strategy=MissingValuesNumericStrategy.MEDIAN,
+        missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE,
         num_splits=NUM_SPLITS,
     )
+
     types = parser.get_types()
     post_encoding_types = parser.get_post_encoding_types()
 
@@ -229,7 +240,7 @@ if __name__ == "__main__":
                 kernel=args.svm_kernel,
                 C=args.C,
                 gamma=args.gamma,
-                Degree=args.Degree,
+                Degree=args.degree,
                 fold_id=fold_id,
                 num_folds=NUM_SPLITS,
                 n_train=train_matrix.shape[0],
