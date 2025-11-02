@@ -9,33 +9,34 @@ Group number: 6
 - Lukas Gabriel Sekinger
 - Daniel Hess
 
-### Running script for the first time
+### Setting up Environment
 
-These sections show how to create virtual environment for
-our script and how to install dependencies
+This section shows how to create a virtual environment and how to install dependencies using the `requirements.txt`
 
-1. Open folder in terminal
 
-```bash
-cd <root_folder_of_project>/
-```
 
-2. Create virtual env
+1. Create virtual env
 
 ```bash
 python3 -m venv venv/
 ```
 
-3. Open virtual env
+2. Open virtual env
 
 ```bash
-source venv/bin/activate
+# For Unix
+source venv/Scripts/activate
 ```
 
-4. Install required dependencies
+```bash
+# For Windows
+venv/Scripts/activate
+```
+
+3. Install required dependencies
 
 ```bash
-pip install -r requirement.txt
+python -m pip install -r requirements.txt
 ```
 
 you can check if dependencies were installed by running next
@@ -51,15 +52,17 @@ pip list
 deactivate
 ```
 
-## Execute scripts
+## Quick Quide 
 
-1. Open virtual env
+1. Activate virtual env
 
 ```bash
-source venv/bin/activate
+source venv/Scripts/activate
+# or 
+venv/Scripts/activate
 ```
 
-2. Running the script
+2. Running the main script
 
 ```bash
 python3 src/main.py [OPTIONS]
@@ -126,6 +129,12 @@ python3 src/main.py  --model ir_k_ibl  --dataset pen-based  --instance-reduction
 ```bash
 python3 src/statistical_analysis.py filename_1 filename_2 filename_k --metric f1_macro --export-csv output_filename --savefig filename.png
 ```
+
+**Example 6 (windows): Computing plots from short_list data (Uncomment `grouped_diagrams.py line 9` to switch the dataset):**
+```bash
+python src/grouped_diagrams.py
+```
+
 
 #### Available Options
 
