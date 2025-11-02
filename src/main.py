@@ -48,7 +48,6 @@ if __name__ == "__main__":
 
     rows = []
     for fold_id, (train_matrix, test_matrix) in enumerate(splits):
-
         t0 = time.perf_counter()
 
         if args.model is not Models.SVM:
@@ -56,7 +55,7 @@ if __name__ == "__main__":
 
             # Fit + predict
             t0 = time.perf_counter()
-            
+
             # --- Instance reduction strategy selection ---
             if args.instance_reduction_strategy is None:
                 print("No instance reduction selected.")
@@ -75,7 +74,8 @@ if __name__ == "__main__":
                 ibl.fit(train_matrix, instance_red="CNN")
 
             elif args.instance_reduction_strategy == "MCNN":
-                print("Applying Modified Condensed Nearest Neighbor (MCNN) instance reduction...")
+                print(
+                    "Applying Modified Condensed Nearest Neighbor (MCNN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="MCNN")
 
             elif args.instance_reduction_strategy.lower() == "enn":
@@ -83,17 +83,20 @@ if __name__ == "__main__":
                 ibl.fit(train_matrix, instance_red="enn")
 
             elif args.instance_reduction_strategy.upper() == "RENN":
-                print("Applying Repeated Edited Nearest Neighbor (RENN) instance reduction...")
+                print(
+                    "Applying Repeated Edited Nearest Neighbor (RENN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="RENN")
 
             else:
-                raise ValueError(f"Unknown instance reduction strategy: {args.instance_reduction_strategy}")
-        else:   
+                raise ValueError(
+                    f"Unknown instance reduction strategy: {args.instance_reduction_strategy}")
+        else:
             # Set up SVM fit
             np_train_matrix = train_matrix.reset_index(drop=True).to_numpy()
             X_train, y_train = np_train_matrix[:, :-1], np_train_matrix[:, -1]
 
-            svm = SVC(kernel=args.svm_kernel, C=args.C, gamma=args.gamma, degree=args.Degree)
+            svm = SVC(kernel=args.svm_kernel, C=args.C,
+                      gamma=args.gamma, degree=args.Degree)
             svm.fit(X_train, y_train)
 
         t1 = time.perf_counter()
@@ -116,13 +119,12 @@ if __name__ == "__main__":
                 retention_policy=args.retention_policy,
                 types=types,
                 feature_weighting_method=args.feature_weighting_strategy,
-                post_encoding_types=post_encoding_types
+                post_encoding_types=post_encoding_types[fold_id]
             )
         elif args.model is Models.SVM:
 
             X_test = test_matrix.reset_index(drop=True).to_numpy()[:, :-1]
             preds = svm.predict(X_test)
-    
 
         t2 = time.perf_counter()
 
@@ -196,7 +198,8 @@ if __name__ == "__main__":
                 memory_before_ir=ibl.cp_before_ir,
                 memory_after_ir=ibl.cp_after_ir,
                 memory_after_training=ibl.cp_after_training,
-                percentage_memory_reduction=(ibl.cp_before_ir - ibl.cp_after_ir) / ibl.cp_before_ir * 100
+                percentage_memory_reduction=(
+                    ibl.cp_before_ir - ibl.cp_after_ir) / ibl.cp_before_ir * 100
             )
         elif args.model is Models.K_IBL:
             row = create_k_ibl_csv_row(
@@ -252,4 +255,3 @@ if __name__ == "__main__":
 
     write_header = not out_csv.exists()
     df_rows.to_csv(out_csv, mode="a", header=write_header, index=False)
-
