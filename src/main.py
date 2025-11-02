@@ -26,18 +26,18 @@ if __name__ == "__main__":
         args = parse_arguments()
     except ValueError as e:
         raise ValueError(f"Argument parsing error: {e}")
-    
-    encoding_for_metrics={
+
+    encoding_for_metrics = {
         "euclidean": EncodingStrategy.ONE_HOT_ENCODE,
         "cosine":    EncodingStrategy.ONE_HOT_ENCODE,
-        "heom": EncodingStrategy.LABEL_ENCODE, 
+        "heom": EncodingStrategy.LABEL_ENCODE,
     }
 
     parser = Parser(
         base_path=BASE_PATH,
         dataset_name=args.dataset_name,
         normalization_strategy=NormalizationStrategy.MEAN_NORMALIZE,
-        encoding_strategy=encoding_for_metrics[args.distance_metric],
+        encoding_strategy=encoding_for_metrics[args.distance_metric] if args.distance_metric is not None else EncodingStrategy.LABEL_ENCODE,
         missing_values_numeric_strategy=MissingValuesNumericStrategy.MEDIAN,
         missing_values_categorical_strategy=MissingValuesCategoricalStrategy.MODE,
         num_splits=NUM_SPLITS,
@@ -55,10 +55,11 @@ if __name__ == "__main__":
     labels = np.array(sorted(all_labels))
 
     out_csv = Path(RESULTS_PATH +
-                   f"{args.dataset_name}-{args.model}.csv")
+                   f"{args.out_filename}")
 
     rows = []
     for fold_id, (train_matrix, test_matrix) in enumerate(splits):
+
         t0 = time.perf_counter()
 
         if args.model is not Models.SVM:
@@ -69,33 +70,24 @@ if __name__ == "__main__":
 
             # --- Instance reduction strategy selection ---
             if args.instance_reduction_strategy is None:
-                print("No instance reduction selected.")
                 ibl.fit(train_matrix)
 
             elif args.instance_reduction_strategy == "IBL3":
-                print("Applying IBL3 instance reduction...")
                 ibl.fit(train_matrix, instance_red="IBL3")
 
             elif args.instance_reduction_strategy == "IBL3_verbose":
-                print("Applying IBL3 (verbose) instance reduction...")
                 ibl.fit(train_matrix, instance_red="IBL3_verbose")
 
             elif args.instance_reduction_strategy == "CNN":
-                print("Applying Condensed Nearest Neighbor (CNN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="CNN")
 
             elif args.instance_reduction_strategy == "MCNN":
-                print(
-                    "Applying Modified Condensed Nearest Neighbor (MCNN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="MCNN")
 
             elif args.instance_reduction_strategy.lower() == "enn":
-                print("Applying Edited Nearest Neighbor (ENN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="enn")
 
             elif args.instance_reduction_strategy.upper() == "RENN":
-                print(
-                    "Applying Repeated Edited Nearest Neighbor (RENN) instance reduction...")
                 ibl.fit(train_matrix, instance_red="RENN")
 
             else:
@@ -107,7 +99,7 @@ if __name__ == "__main__":
             X_train, y_train = np_train_matrix[:, :-1], np_train_matrix[:, -1]
 
             svm = SVC(kernel=args.svm_kernel, C=args.C,
-                      gamma=args.gamma, degree=args.Degree)
+                      gamma=args.gamma, degree=args.degree)
             svm.fit(X_train, y_train)
 
         t1 = time.perf_counter()
@@ -260,9 +252,12 @@ if __name__ == "__main__":
             )
 
         rows.append(row)
+        print(f"- Fold {fold_id}/{NUM_SPLITS} completed")
 
     out_csv.parent.mkdir(parents=True, exist_ok=True)
     df_rows = pd.DataFrame(rows)
 
     write_header = not out_csv.exists()
     df_rows.to_csv(out_csv, mode="a", header=write_header, index=False)
+
+    print(f"Results saved: {out_csv}")

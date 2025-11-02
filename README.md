@@ -1,6 +1,6 @@
 # Steps to run the script:
 
-### Team
+## Team
 
 Group number: 6
 
@@ -9,23 +9,33 @@ Group number: 6
 - Lukas Gabriel Sekinger
 - Daniel Hess
 
-### Setting up Environment
+## Running script for the first time
 
 This section shows how to create a virtual environment and how to install dependencies using the `requirements.txt`
 
-
-
-1. Create virtual env
+1. Open folder in terminal
 
 ```bash
-python3 -m venv venv/
+cd <root_folder_of_project>/
 ```
 
-2. Open virtual env
+2. Create virtual env
 
 ```bash
 # For Unix
-source venv/Scripts/activate
+python3 -m venv venv/
+```
+
+```bash
+# For Windows
+python -m venv venv/
+```
+
+3. Open virtual env
+
+```bash
+# For Unix
+source venv/bin/activate
 ```
 
 ```bash
@@ -33,10 +43,22 @@ source venv/Scripts/activate
 venv/Scripts/activate
 ```
 
-3. Install required dependencies
+4. Install required dependencies
 
 ```bash
+# For Unix
+pip install -r requirements.txt
+```
+
+```bash
+# For Windows
 python -m pip install -r requirements.txt
+```
+
+5. Close virtual env
+
+```bash
+deactivate
 ```
 
 you can check if dependencies were installed by running next
@@ -46,200 +68,154 @@ command,it should print list with installed dependencies
 pip list
 ```
 
-5. Close virtual env
+## Execute scripts
+
+1. Open virtual env
+
+```bash
+source venv/bin/activate
+```
+
+2. Running the script.
+
+All implemented models are available from the `src/main.py` script. You can configure the script it by passing a set of arguments as explained in the section below (Script configuration). For instance, executing the k-IBL model would look like this:
+
+```bash
+python3 src/main.py --model k_ibl --dataset pen-based --k 5 --distance-metric cosine --voting-strategy borda --retention-strategy different_class_retention --out_filename pen-based-k_ibl.csv
+```
+
+\*Replace `python3` with `python` if running on Windows.
+
+1. Close virtual env
 
 ```bash
 deactivate
 ```
 
-## Quick Quide 
+## Script configuration
 
-1. Activate virtual env
-
-```bash
-source venv/Scripts/activate
-# or 
-venv/Scripts/activate
-```
-
-2. Running the main script
-
-```bash
-python3 src/main.py [OPTIONS]
-```
-
-3. Close virtual env
-
-```bash
-deactivate
-```
-
-#### Example Commands
-
-**Example 1: Running K-IBL with default preprocessing:**
-
-```bash
-python3 src/main.py \
-  --model k_ibl \
-  --dataset pen-based \
-  --k 5 \
-  --distance-metric cosine \
-  --voting-strategy borda \
-  --retention-strategy different_class_retention
-```
-
-**Example 2: Running Feature-Weighted K-IBL with custom preprocessing:**
-
-```bash
-python3 src/main.py \
-  --model fw_k_ibl \
-  --dataset pen-based \
-  --feature-weighting-strategy relieff \
-  --normalization mean_normalize \
-  --encoding one_hot_encode \
-  --missing-numeric-strategy median \
-  --missing-categorical-strategy mode \
-  --k 5 \
-  --distance-metric cosine \
-  --voting-strategy borda \
-  --retention-strategy different_class_retention
-```
-**Example 2.1 (windows): Running Feature-Weighted K-IBL with custom preprocessing:**
-
-```bash
-python3 src/main.py  --model fw_k_ibl  --dataset pen-based  --feature-weighting-strategy relieff  --normalization mean_normalize  --encoding one_hot_encode  --missing-numeric-strategy median  --missing-categorical-strategy mode  --k 5  --distance-metric cosine  --voting-strategy borda  --retention-strategy different_class_retention
-```
-
-**Example 3: Running SVM:**
-
-```bash
-python3 src/main.py \
-  --model svm \
-  --dataset pen-based \
-  --svm-kernel rbf \
-  --normalization mean_normalize \
-  --encoding label_encode
-```
-**Example 4 (windows): Running Feature-Weighted K-IBL with custom preprocessing:**
-
-```bash
-python3 src/main.py  --model ir_k_ibl  --dataset pen-based  --instance-reduction-strategy CNN  --normalization mean_normalize  --encoding one_hot_encode  --missing-numeric-strategy median  --missing-categorical-strategy mode  --k 5  --distance-metric cosine  --voting-strategy borda  --retention-strategy different_class_retention
-```
-**Example 5 (windows): Running Statistical Analysis (compatible with any number of files, and all types of configs):**
-```bash
-python3 src/statistical_analysis.py filename_1 filename_2 filename_k --metric f1_macro --export-csv output_filename --savefig filename.png
-```
-
-**Example 6 (windows): Computing plots from short_list data (Uncomment `grouped_diagrams.py line 9` to switch the dataset):**
-```bash
-python src/grouped_diagrams_ibl.py
-python src/grouped_diagrams_svm.py
-```
-
-
-#### Available Options
-
-##### Model Selection
-
-- `--model`: Model type to use
-  - Options: `k_ibl`, `fw_k_ibl`, `ir_k_ibl`, `svm`
-  - Default: `k_ibl`
-  - **Note**: Model-specific arguments are required based on the selected model (see requirements below)
-
-##### Dataset
-
-- `--dataset`: Dataset name
-  - Default: `pen-based`
-
-##### Preprocessing Options
-
-- `--normalization`: Normalization strategy
-
-  - Options: `mean_normalize`, `standardize`, `unit_vector`, `minmax_scaling`
-  - Default: `mean_normalize`
-
-- `--encoding`: Encoding strategy
-
-  - Options: `label_encode`, `one_hot_encode`
-  - Default: `label_encode`
-
-- `--missing-numeric-strategy`: Missing values strategy for numeric features
-
-  - Options: `mean`, `median`, `zero`, `drop`, `model`
-  - Default: `mean`
-
-- `--missing-categorical-strategy`: Missing values strategy for categorical features
-  - Options: `mode`, `constant`, `drop`
-  - Default: `mode`
-
-##### K-IBL Model Options (Required for `k_ibl`, `fw_k_ibl`, `ir_k_ibl`)
-
-- `--k`: Number of nearest neighbors
-
-  - Options: `3`, `5`, `7`
-  - Required for all k-IBL variants
-
-- `--distance-metric`: Distance metric to use
-
-  - Options: `euclidean`, `cosine`, `heom`
-  - Required for all k-IBL variants
-
-- `--voting-strategy`: Voting strategy
-
-  - Options: `modified_plurality`, `borda`
-  - Required for all k-IBL variants
-
-- `--retention-strategy`: Retention policy
-  - Options: `never_retain`, `always_retain`, `different_class_retention`, `DD_retention`
-  - Required for all k-IBL variants
-
-##### Feature-Weighted K-IBL Options (Required for `fw_k_ibl`)
-
-- `--feature-weighting-strategy`: Feature weighting strategy
-  - Options: `relieff`, `information_gain`
-  - Required when `--model` is `fw_k_ibl`
-
-##### Instance Reduction K-IBL Options (Required for `ir_k_ibl`)
-
-- `--instance-reduction-strategy`: Instance reduction type
-  - Options: `ibl3`
-  - Required when `--model` is `ir_k_ibl`
-
-##### SVM Options (Required for `svm`)
-
-- `--svm-kernel`: SVM kernel type
-  - Options: `rbf`, `poly`
-  - Required when `--model` is `svm`
-
-#### Model-Specific Requirements
-
-Different models have different argument requirements:
-
-- **K-IBL variants** (`k_ibl`, `fw_k_ibl`, `ir_k_ibl`): Require `--k`, `--distance-metric`, `--voting-strategy`, and `--retention-strategy`
-- **Feature-Weighted K-IBL** (`fw_k_ibl`): Additionally requires `--feature-weighting-strategy`
-- **Instance Reduction K-IBL** (`ir_k_ibl`): Additionally requires `--instance-reduction-strategy`
-- **SVM** (`svm`): Requires `--svm-kernel`
-
-#### Viewing Help
-
-To see all available options and their descriptions:
+All implemented models are available through the `src/main.py` script. The script accepts a set of arguments. To quickly see what arguments are required you can run:
 
 ```bash
 python3 src/main.py --help
 ```
 
-#### Output
+The complete list of parameters are:
 
-The script outputs results to a CSV file (`idfk.csv` in the project root by default) containing performance metrics for each fold including:
+### Core Parameters (Always Available)
+
+- **`--dataset`**: The name of the dataset to use (e.g., `pen-based`, `adult`)
+
+- **`--model`**: The machine learning model to run. This is the primary parameter that determines which other parameters will be required.
+
+  - Options: `k_ibl`, `fw_k_ibl`, `ir_k_ibl`, `svm`
+  - **Important**: The model you choose determines which additional parameters are required (see model-specific requirements below)
+
+- **`--out_filename`**: The output filename for the CSV results file (e.g., `results.csv`)
+  - Required: Yes
+  - The file will be saved in the `src/results/` directory
+
+### K-IBL Parameters (Required for `k_ibl`, `fw_k_ibl`, and `ir_k_ibl` models)
+
+These four parameters are mandatory when running any k-IBL variant:
+
+- **`--k`**: Number of nearest neighbors to consider for classification
+
+  - Options: `3`, `5`, `7`
+
+- **`--distance-metric`**: The distance metric used to measure similarity between instances
+
+  - Options: `euclidean`, `cosine`, `heom`
+
+- **`--voting-strategy`**: How the k nearest neighbors vote to determine the final classification
+  - Options: `modified_plurality`, `borda`
+- **`--retention-strategy`**: Policy for retaining correctly classified instances in memory
+  - Options: `never_retain`, `always_retain`, `different_class_retention`, `DD_retention`
+
+### Feature-Weighted K-IBL Parameters (Required only for `fw_k_ibl`)
+
+- **`--feature-weighting-strategy`**: Method to calculate feature importance/weights
+  - Options: `relieff`, `information_gain`
+
+### Instance Reduction K-IBL Parameters (Required only for `ir_k_ibl`)
+
+- **`--instance-reduction-strategy`**: Method to reduce the training set size before classification
+  - Options: `IBL3`, `CNN`, `enn`
+
+### SVM Parameters (Required only for `svm` model)
+
+When using the SVM model, all four of these parameters are mandatory:
+
+- **`--svm-kernel`**: The kernel function used by the SVM
+  - Options: `rbf`, `poly`
+- **`--C`**: Regularization parameter that controls the trade-off between margin maximization and classification error
+
+  - Options: `0.01`, `0.1`, `1`, `10`
+
+- **`--gamma`**: Kernel coefficient for RBF and polynomial kernels
+
+  - Options: `0.001`, `0.01`, `0.1`
+
+- **`--degree`**: Degree of the polynomial kernel (only used when `--svm-kernel poly`)
+  - Options: `2`, `3`
+
+```bash
+python3 src/main.py --model k_ibl --dataset pen-based --k 5 --distance-metric cosine --voting-strategy borda --retention-strategy different_class_retention --out_filename pen-based-k_ibl.csv
+```
+
+## Example script runs
+
+**Important** If running on Windows make sure to use the `python` command.
+
+**Example 1: Running k-IBL:**
+
+```bash
+python3 src/main.py --model k_ibl --dataset pen-based --k 5 --distance-metric cosine --voting-strategy borda --retention-strategy different_class_retention --out_filename pen-based-k_ibl.csv
+```
+
+**Example 2: Running Feature-Weighted K-IBL:**
+
+```bash
+python3 src/main.py --model fw_k_ibl --dataset pen-based --feature-weighting-strategy relieff --k 5 --distance-metric cosine --voting-strategy borda --retention-strategy different_class_retention --out_filename pen-based-fw_k_ibl.csv
+```
+
+**Example 3: Running SVM:**
+
+```bash
+python3 src/main.py --model svm --dataset pen-based --svm-kernel rbf --C 1 --gamma 0.01 --degree 2 --out_filename pen-based-svm.csv
+```
+
+**Example 4: Running k-IBL with Instance Reduction:**
+
+```bash
+python3 src/main.py  --model ir_k_ibl  --dataset pen-based  --instance-reduction-strategy CNN --k 5  --distance-metric cosine  --voting-strategy borda  --retention-strategy different_class_retention --out_filename pen-based-ir_k_ibl.csv
+```
+
+**Example 5: Running Statistical Analysis (compatible with any number of files, and all types of configs):**
+
+```bash
+python3 src/statistical_analysis.py filename_1 filename_2 filename_k --metric f1_macro --export-csv output_filename --savefig filename.png
+```
+
+**Example 6: Creating plots from data (Uncomment `grouped_diagrams.py line 9` to switch the dataset):**
+
+```bash
+python src/grouped_diagrams_ibl.py
+python src/grouped_diagrams_svm.py
+```
+
+## Output
+
+The script outputs results to a CSV file in the `src/results/` directory. The filename is specified using the `--out_filename` parameter. The CSV file contains performance metrics for each fold including:
 
 - Accuracy, precision, recall, and F1 scores (macro and weighted averages)
 - Confusion matrices (as JSON)
 - Training and prediction times
 - Dataset and configuration information
 
-# How to Run the Tests
+## How to Run the Unit Tests
 
-To run all tests and see coverage in your terminal, execute the following command from the project root:
+To run all unittests and see coverage in your terminal, execute the following command from the project root:
 
 ```sh
 pytest
@@ -252,14 +228,3 @@ If you want to run a specific test file, use:
 ```sh
 pytest tests/test_distance_measures.py
 ```
-
-# BEST KIBL
-
-cozine
-k=7
-voting=borda
-retention=diff_class_retention
-
-normalize: mean normalize
-missing-value-num = median
-missing value cat = mode

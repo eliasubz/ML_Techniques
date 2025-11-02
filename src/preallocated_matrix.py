@@ -6,7 +6,6 @@ class PreallocatedMatrix:
     Class to handle preallocated numpy arrays for efficient data storage."""
 
     def __init__(self, rows, cols, dtype=np.float64):
-        print(f"Preallocating matrix of shape ({rows}, {cols})")
         self.arr = np.zeros((rows, cols), dtype=dtype)
         self.row = 0
 

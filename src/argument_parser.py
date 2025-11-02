@@ -33,12 +33,21 @@ class ParsedArguments:
     gamma: float
     degree: int
 
+    out_filename: str
+
 
 def parse_arguments() -> ParsedArguments:
     """Parse and validate command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Run experiments",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+        description="Script to run various IBL and SVM models on a specified dataset. Pass the appropriate options to run your desired model.\n\n"
+                    "Required Parameters:\n"
+                    "  For SVM models:\n"
+                    "    --svm-kernel, --C, --gamma, --degree\n\n"
+                    "  For k-IBL variants (k_ibl, fw_k_ibl, ir_k_ibl):\n"
+                    "    --k, --distance-metric, --voting-strategy, --retention-strategy\n"
+                    "    Additionally for fw_k_ibl: --feature-weighting-strategy\n"
+                    "    Additionally for ir_k_ibl: --instance-reduction-strategy",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 
     parser.add_argument(
@@ -126,6 +135,12 @@ def parse_arguments() -> ParsedArguments:
         help="SVM kernel type"
     )
 
+    parser.add_argument(
+        "--out_filename",
+        type=str,
+        help="output filename"
+    )
+
     args = parser.parse_args()
 
     parsed_args = ParsedArguments(
@@ -140,8 +155,12 @@ def parse_arguments() -> ParsedArguments:
         svm_kernel=args.svm_kernel,
         C=args.C,
         gamma=args.gamma,
-        degree=args.degree
+        degree=args.degree,
+        out_filename=args.out_filename
     )
+
+    if parsed_args.out_filename is None:
+        parser.error("--out_filename is required")
 
     if parsed_args.model is Models.SVM:  # Missing parameters for SVM
         if parsed_args.svm_kernel is None:

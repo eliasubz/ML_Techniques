@@ -17,7 +17,6 @@ def compute_feature_weights(X: np.ndarray, y: np.ndarray, method: FeatureWeighti
     Returns:
         np.ndarray: Feature weights (values between 0 and 1)
     """
-    print(f"Computing feature weights using {method}...")
 
     if post_encoding_types is None:
         raise ValueError(
